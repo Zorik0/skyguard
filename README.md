@@ -2,6 +2,8 @@
 
 **Intelligent operations and data-quality platform for Automatic Weather Station networks.**
 
+**[Live demo →](https://skyguard-zorikos-projects.vercel.app)**
+
 A weather station reports 61.4 °C. Is the region on fire, or is the probe broken?
 
 SkyGuard answers that question, shows its working, estimates what the true value

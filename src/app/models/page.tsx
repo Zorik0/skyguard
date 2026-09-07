@@ -148,7 +148,7 @@ export default function ModelLabPage() {
           title="How each method performed"
           actions={
             <span className="text-[10.5px] text-ink-3">
-              detection threshold 50 · {evaluation.hasGroundTruth ? 'fault present in window' : 'no fault in window'}
+              {evaluation.hasGroundTruth ? 'fault present in window' : 'no fault in window'}
             </span>
           }
         >
@@ -157,7 +157,7 @@ export default function ModelLabPage() {
               <thead>
                 <tr className="border-b border-line text-left">
                   {[
-                    'Method', 'Current score', 'Verdict', 'Confidence', 'Detections',
+                    'Method', 'Current score', 'Threshold', 'Verdict', 'Confidence', 'Detections',
                     'False positives', 'Missed', 'Precision', 'Recall', 'Latency', 'Peak',
                   ].map((h) => (
                     <th key={h} scope="col" className="eyebrow px-2.5 py-1.5 font-semibold whitespace-nowrap">
@@ -184,6 +184,7 @@ export default function ModelLabPage() {
                       </p>
                     </td>
                     <td className="tnum px-2.5 py-2">{r.currentScore}</td>
+                    <td className="tnum px-2.5 py-2 text-ink-3">{r.model.threshold}</td>
                     <td className="px-2.5 py-2">
                       <span
                         className="rounded-[2px] px-1.5 py-px text-[9.5px] font-semibold tracking-wider uppercase"

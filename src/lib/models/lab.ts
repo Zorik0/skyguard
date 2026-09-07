@@ -60,9 +60,11 @@ export const MODELS: ModelSpec[] = [
     id: 'isolation',
     name: 'Isolation-Forest-style score',
     description:
-      'A deterministic stand-in for a tree-ensemble outlier score, computed from the same telemetry. It is not a trained model and is marked as simulated everywhere it appears.',
+      'Average isolation depth over sixteen random trees, normalised the way the real algorithm normalises it. Typical points sit near 50, so it carries a higher detection threshold than the scaled scores. Not a trained model.',
     simulated: true,
-    threshold: 50,
+    // The normalised score centres near 50 by construction, so 50 would flag
+    // roughly half of all samples. 0.62 is the conventional operating point.
+    threshold: 62,
   },
   {
     id: 'twin',
@@ -110,6 +112,71 @@ export interface LabEvaluation {
   windowMinutes: number;
   hasGroundTruth: boolean;
   results: ModelResult[];
+}
+
+/**
+ * A one-dimensional Isolation Forest score.
+ *
+ * This follows the real algorithm's shape — build trees by splitting a random
+ * subsample at random points, measure how few splits it takes to isolate the
+ * value, and normalise the average depth by the expected depth for that
+ * subsample size — so a typical point lands near 50 and a genuine outlier
+ * climbs toward 100.
+ *
+ * It is still a stand-in: nothing here is fitted, and it is marked as simulated
+ * everywhere it is shown. But it is calibrated the way the real score is,
+ * rather than being a threshold dressed up as a model.
+ */
+const ISO_TREES = 16;
+const ISO_SUBSAMPLE = 32;
+const ISO_MAX_DEPTH = Math.ceil(Math.log2(ISO_SUBSAMPLE));
+const EULER_MASCHERONI = 0.5772156649;
+
+/** Expected path length of an unsuccessful search in a binary tree of n nodes. */
+function expectedPathLength(n: number): number {
+  if (n <= 1) return 0;
+  const harmonic = Math.log(n - 1) + EULER_MASCHERONI;
+  return 2 * harmonic - (2 * (n - 1)) / n;
+}
+
+function isolationScoreFor(value: number, window: number[], rng: () => number): number {
+  if (window.length < 8) return 0;
+
+  let depthSum = 0;
+  for (let tree = 0; tree < ISO_TREES; tree++) {
+    // Each tree sees its own random subsample, as in the real algorithm.
+    let lo = Infinity;
+    let hi = -Infinity;
+    const take = Math.min(ISO_SUBSAMPLE, window.length);
+    for (let k = 0; k < take; k++) {
+      const sample = window[Math.floor(rng() * window.length)];
+      if (sample < lo) lo = sample;
+      if (sample > hi) hi = sample;
+    }
+
+    let a = Math.min(lo, value);
+    let b = Math.max(hi, value);
+    let depth = 0;
+    while (depth < ISO_MAX_DEPTH && b - a > 1e-9) {
+      const split = a + rng() * (b - a);
+      depth++;
+      // Isolated once the surviving partition holds no sampled points.
+      if (value < split) {
+        b = split;
+        if (b <= lo) break;
+      } else {
+        a = split;
+        if (a >= hi) break;
+      }
+    }
+    // Points that never isolate inherit the expected remaining depth.
+    depthSum += depth + (depth >= ISO_MAX_DEPTH ? expectedPathLength(take) : 0);
+  }
+
+  const meanDepth = depthSum / ISO_TREES;
+  const normaliser = expectedPathLength(Math.min(ISO_SUBSAMPLE, window.length));
+  if (normaliser <= 0) return 0;
+  return clamp(2 ** (-meanDepth / normaliser) * 100, 0, 100);
 }
 
 /** Was a hardware (non-meteorological) fault injected on this channel at time t? */
@@ -207,23 +274,7 @@ export function evaluateModels(
     const rollingScore = clamp((robustZ / 12) * 100, 0, 100);
 
     // --- Isolation-Forest-style stand-in ---------------------------------
-    // Deterministic and reproducible: random split points over the observed
-    // range, scored by how quickly the value isolates. Structurally similar to
-    // the real algorithm, but not a trained model.
-    const rng = makeRng(isoSeed + i);
-    const lo = Math.min(...window);
-    const hi = Math.max(...window);
-    let depth = 0;
-    let a = Math.min(lo, v);
-    let b = Math.max(hi, v);
-    for (let d = 0; d < 12 && b - a > 1e-9; d++) {
-      const split = a + rng() * (b - a);
-      depth++;
-      if (v < split) b = split;
-      else a = split;
-      if ((v < lo && b <= lo) || (v > hi && a >= hi)) break;
-    }
-    const isolationScore = clamp(((12 - depth) / 12) * 100 * (v < lo || v > hi ? 1 : 0.35), 0, 100);
+    const isolationScore = isolationScoreFor(v, window, makeRng(isoSeed + i));
 
     // --- Digital-twin disagreement ---------------------------------------
     const tv = twinValue(series.twin[i], sensorType);
