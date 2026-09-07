@@ -60,7 +60,7 @@ export const MODELS: ModelSpec[] = [
     id: 'isolation',
     name: 'Isolation-Forest-style score',
     description:
-      'Average isolation depth over sixteen random trees, normalised the way the real algorithm normalises it. Typical points sit near 50, so it carries a higher detection threshold than the scaled scores. Not a trained model.',
+      'A real Isolation Forest — 32 trees fitted over the window, given the multivariate feature vector the method is designed for. Its score is centred by construction, so it carries a higher detection threshold than the scaled scores.',
     simulated: true,
     // The normalised score centres near 50 by construction, so 50 would flag
     // roughly half of all samples. 0.62 is the conventional operating point.
@@ -127,9 +127,25 @@ export interface LabEvaluation {
  * everywhere it is shown. But it is calibrated the way the real score is,
  * rather than being a threshold dressed up as a model.
  */
-const ISO_TREES = 16;
-const ISO_SUBSAMPLE = 32;
-const ISO_MAX_DEPTH = Math.ceil(Math.log2(ISO_SUBSAMPLE));
+/**
+ * Isolation Forest.
+ *
+ * The real algorithm, implemented properly rather than approximated: a forest
+ * is *fitted once* over the whole window, each tree splitting a random
+ * subsample on a random feature at a random point, and every sample is then
+ * scored by its average path length normalised against the expected path
+ * length for that subsample size.
+ *
+ * It is given the feature vector it is designed for — Isolation Forest is a
+ * multivariate method, and handing it a single channel would be testing a
+ * strawman. The features below are the same quantities the other detectors
+ * look at, so the comparison in the Model Lab is a fair one.
+ *
+ * Nothing here is trained on labels; it is an unsupervised fit over the
+ * window being examined, and it is marked as simulated wherever it is shown.
+ */
+const ISO_TREES = 32;
+const ISO_SUBSAMPLE = 128;
 const EULER_MASCHERONI = 0.5772156649;
 
 /** Expected path length of an unsuccessful search in a binary tree of n nodes. */
@@ -139,44 +155,100 @@ function expectedPathLength(n: number): number {
   return 2 * harmonic - (2 * (n - 1)) / n;
 }
 
-function isolationScoreFor(value: number, window: number[], rng: () => number): number {
-  if (window.length < 8) return 0;
+interface IsoNode {
+  dim: number;
+  split: number;
+  left: IsoNode | null;
+  right: IsoNode | null;
+  /** Points remaining at a leaf, used to charge the expected remaining depth. */
+  size: number;
+}
 
-  let depthSum = 0;
-  for (let tree = 0; tree < ISO_TREES; tree++) {
-    // Each tree sees its own random subsample, as in the real algorithm.
-    let lo = Infinity;
-    let hi = -Infinity;
-    const take = Math.min(ISO_SUBSAMPLE, window.length);
-    for (let k = 0; k < take; k++) {
-      const sample = window[Math.floor(rng() * window.length)];
-      if (sample < lo) lo = sample;
-      if (sample > hi) hi = sample;
-    }
-
-    let a = Math.min(lo, value);
-    let b = Math.max(hi, value);
-    let depth = 0;
-    while (depth < ISO_MAX_DEPTH && b - a > 1e-9) {
-      const split = a + rng() * (b - a);
-      depth++;
-      // Isolated once the surviving partition holds no sampled points.
-      if (value < split) {
-        b = split;
-        if (b <= lo) break;
-      } else {
-        a = split;
-        if (a >= hi) break;
-      }
-    }
-    // Points that never isolate inherit the expected remaining depth.
-    depthSum += depth + (depth >= ISO_MAX_DEPTH ? expectedPathLength(take) : 0);
+function buildIsoTree(
+  points: number[][],
+  indices: number[],
+  depth: number,
+  maxDepth: number,
+  dims: number,
+  rng: () => number,
+): IsoNode {
+  if (depth >= maxDepth || indices.length <= 1) {
+    return { dim: -1, split: 0, left: null, right: null, size: indices.length };
   }
 
-  const meanDepth = depthSum / ISO_TREES;
-  const normaliser = expectedPathLength(Math.min(ISO_SUBSAMPLE, window.length));
-  if (normaliser <= 0) return 0;
-  return clamp(2 ** (-meanDepth / normaliser) * 100, 0, 100);
+  // Pick a feature that actually varies here; a constant one cannot split.
+  let dim = -1;
+  let min = 0;
+  let max = 0;
+  for (let attempt = 0; attempt < dims; attempt++) {
+    const candidate = Math.floor(rng() * dims);
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const i of indices) {
+      const v = points[i][candidate];
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    }
+    if (hi - lo > 1e-12) {
+      dim = candidate;
+      min = lo;
+      max = hi;
+      break;
+    }
+  }
+  if (dim < 0) {
+    return { dim: -1, split: 0, left: null, right: null, size: indices.length };
+  }
+
+  const split = min + rng() * (max - min);
+  const left: number[] = [];
+  const right: number[] = [];
+  for (const i of indices) {
+    if (points[i][dim] < split) left.push(i);
+    else right.push(i);
+  }
+
+  return {
+    dim,
+    split,
+    left: buildIsoTree(points, left, depth + 1, maxDepth, dims, rng),
+    right: buildIsoTree(points, right, depth + 1, maxDepth, dims, rng),
+    size: indices.length,
+  };
+}
+
+function isoPathLength(node: IsoNode, point: number[], depth: number): number {
+  if (node.dim < 0 || !node.left || !node.right) {
+    return depth + expectedPathLength(node.size);
+  }
+  return point[node.dim] < node.split
+    ? isoPathLength(node.left, point, depth + 1)
+    : isoPathLength(node.right, point, depth + 1);
+}
+
+/** Fit a forest over the feature matrix and score every row against it. */
+function isolationForestScores(features: number[][], rng: () => number): number[] {
+  const n = features.length;
+  if (n < 32) return new Array(n).fill(0);
+
+  const dims = features[0].length;
+  const take = Math.min(ISO_SUBSAMPLE, n);
+  const maxDepth = Math.ceil(Math.log2(take));
+  const normaliser = expectedPathLength(take);
+  if (normaliser <= 0) return new Array(n).fill(0);
+
+  const trees: IsoNode[] = [];
+  for (let t = 0; t < ISO_TREES; t++) {
+    const indices: number[] = new Array(take);
+    for (let k = 0; k < take; k++) indices[k] = Math.floor(rng() * n);
+    trees.push(buildIsoTree(features, indices, 0, maxDepth, dims, rng));
+  }
+
+  return features.map((point) => {
+    let sum = 0;
+    for (const tree of trees) sum += isoPathLength(tree, point, 0);
+    return clamp(2 ** (-sum / trees.length / normaliser) * 100, 0, 100);
+  });
 }
 
 /** Was a hardware (non-meteorological) fault injected on this channel at time t? */
@@ -224,6 +296,8 @@ export function evaluateModels(
     : null;
 
   const isoSeed = hashSeed(`iso:${stationId}:${sensorType}:${world.seed}`);
+  // Feature rows for the Isolation Forest, aligned with the scored samples.
+  const features: number[][] = [];
   const scores = new Map<string, { t: number; score: number }[]>(
     MODELS.map((m) => [m.id, []]),
   );
@@ -238,6 +312,7 @@ export function evaluateModels(
 
     if (v === null || i < baselineSpan + guard) {
       for (const m of MODELS) scores.get(m.id)!.push({ t, score: 0 });
+      features.push([0, 0, 1, 0]);
       continue;
     }
 
@@ -248,6 +323,7 @@ export function evaluateModels(
     }
     if (window.length < 20) {
       for (const m of MODELS) scores.get(m.id)!.push({ t, score: 0 });
+      features.push([0, 0, 1, 0]);
       continue;
     }
 
@@ -267,17 +343,27 @@ export function evaluateModels(
     const z = Math.abs(v - m0) / sd;
     const zScore = clamp((z / 10) * 100, 0, 100);
 
+    const tv = twinValue(series.twin[i], sensorType);
+
     // --- Robust rolling deviation ----------------------------------------
     const med = median(window);
     const mad = Math.max(1.4826 * median(window.map((x) => Math.abs(x - med))), 1e-6);
     const robustZ = Math.abs(v - med) / mad;
     const rollingScore = clamp((robustZ / 12) * 100, 0, 100);
 
-    // --- Isolation-Forest-style stand-in ---------------------------------
-    const isolationScore = isolationScoreFor(v, window, makeRng(isoSeed + i));
+    // --- Isolation Forest features ----------------------------------------
+    // The same quantities the other detectors examine, so the comparison is
+    // between methods rather than between inputs. Scored after the scan, once
+    // the forest has been fitted over the whole window.
+    const recentSd = stdev(window.slice(-30));
+    features.push([
+      (v - m0) / sd,
+      prev !== null ? (v - prev) / Math.max(sd, 1e-6) : 0,
+      recentSd / Math.max(sd, 1e-6),
+      tv === null ? 0 : (v - tv) / twinTolerance,
+    ]);
 
     // --- Digital-twin disagreement ---------------------------------------
-    const tv = twinValue(series.twin[i], sensorType);
     const twinScore = tv === null ? 0 : clamp((Math.abs(v - tv) / twinTolerance / 3) * 100, 0, 100);
 
     // --- Production ensemble ---------------------------------------------
@@ -290,9 +376,16 @@ export function evaluateModels(
     scores.get('rules')!.push({ t, score: round(ruleScore, 1) });
     scores.get('zscore')!.push({ t, score: round(zScore, 1) });
     scores.get('rolling')!.push({ t, score: round(rollingScore, 1) });
-    scores.get('isolation')!.push({ t, score: round(isolationScore, 1) });
+    scores.get('isolation')!.push({ t, score: 0 });
     scores.get('twin')!.push({ t, score: round(twinScore, 1) });
     scores.get('ensemble')!.push({ t, score: round(ensembleScore, 1) });
+  }
+
+  // Fit the forest over the whole window, then fill in its scores.
+  const isolationScores = isolationForestScores(features, makeRng(isoSeed));
+  const isolationSeries = scores.get('isolation')!;
+  for (let k = 0; k < isolationSeries.length; k++) {
+    isolationSeries[k].score = round(isolationScores[k] ?? 0, 1);
   }
 
   const faultMinutes = truth.filter(Boolean).length;
