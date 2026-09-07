@@ -1,0 +1,198 @@
+@import "tailwindcss";
+
+/*
+ * SkyGuard visual system.
+ *
+ * A meteorological operations console: dark, dense, and quiet until something
+ * needs attention. Colour is reserved for status — nothing decorative uses the
+ * status hues, so when amber or red appears on screen it always means
+ * something. Every status colour is paired with a text label in the UI so the
+ * interface never depends on colour alone.
+ */
+
+@theme {
+  --color-bg: #0a0e13;
+  --color-panel: #10161d;
+  --color-raised: #161d26;
+  --color-hover: #1c242f;
+  --color-line: #232c37;
+  --color-line-strong: #2f3b49;
+
+  --color-ink: #e7edf3;
+  --color-ink-2: #8593a2;
+  --color-ink-3: #5a6673;
+
+  --color-healthy: #3ed9c9;
+  --color-event: #5c8df6;
+  --color-warning: #f2b443;
+  --color-critical: #f0894d;
+  --color-failed: #ef5d5d;
+  --color-offline: #55606d;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-panel: 3px;
+}
+
+html {
+  color-scheme: dark;
+  background: var(--color-bg);
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv05", "cv08", "tnum";
+}
+
+/* Telemetry is always monospaced and tabular so columns of numbers align and
+   a changing digit never reflows the row. */
+.tnum {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* ---------------------------------------------------------------- focus -- */
+:focus-visible {
+  outline: 2px solid var(--color-event);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+/* --------------------------------------------------------------- scroll -- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--color-line-strong);
+  border-radius: 99px;
+  border: 2px solid var(--color-bg);
+}
+*::-webkit-scrollbar-thumb:hover { background: #3d4a5a; }
+
+/* ------------------------------------------------------------ primitives -- */
+@utility panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+}
+
+@utility panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-line);
+  min-height: 34px;
+}
+
+/* Section labels: small, spaced, quiet. */
+@utility eyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-ink-3);
+}
+
+/* A restrained glow, used only on live/critical indicators. */
+@utility glow-dot {
+  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 18%, transparent),
+              0 0 8px 0 color-mix(in srgb, currentColor 55%, transparent);
+}
+
+@keyframes skyguard-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.pulse { animation: skyguard-pulse 2.4s ease-in-out infinite; }
+
+@keyframes skyguard-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(400%); }
+}
+.sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 25%;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-event) 35%, transparent), transparent);
+  animation: skyguard-sweep 1.6s ease-in-out infinite;
+}
+
+/* Operators watching a wall display should not have to sit through motion. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Honour the in-app reduced-animation setting as well as the OS one. */
+html[data-motion="reduced"] *,
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+/* Interface density is an operator preference: a wall display and a laptop
+   want different amounts of padding out of the same layout. */
+html[data-density="compact"] { font-size: 12px; }
+html[data-density="comfortable"] { font-size: 14px; }
+
+/* ------------------------------------------------------------- leaflet --- */
+.leaflet-container {
+  background: #0c1218;
+  font-family: var(--font-sans);
+  outline: none;
+}
+.leaflet-control-attribution {
+  background: color-mix(in srgb, var(--color-bg) 85%, transparent) !important;
+  color: var(--color-ink-3) !important;
+  font-size: 10px !important;
+  border-top-left-radius: 3px;
+}
+.leaflet-control-attribution a { color: var(--color-ink-2) !important; }
+.leaflet-bar a {
+  background: var(--color-raised) !important;
+  color: var(--color-ink) !important;
+  border-color: var(--color-line) !important;
+}
+.leaflet-bar a:hover { background: var(--color-hover) !important; }
+/* The basemap ships as a light raster; this pulls it into the console palette
+   rather than shipping a second tile set. */
+.skyguard-tiles {
+  filter: invert(1) hue-rotate(185deg) brightness(0.92) contrast(0.86) saturate(0.55);
+}
+
+/* Map tooltips inherit the console palette rather than Leaflet's defaults. */
+.leaflet-tooltip {
+  background: var(--color-raised) !important;
+  border: 1px solid var(--color-line) !important;
+  color: var(--color-ink) !important;
+  border-radius: 3px !important;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 45%) !important;
+  padding: 4px 7px !important;
+}
+.leaflet-tooltip::before { border-top-color: var(--color-line) !important; }
+.leaflet-tooltip.skyguard-value {
+  background: color-mix(in srgb, var(--color-bg) 82%, transparent) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  padding: 0 3px !important;
+  font-family: var(--font-mono);
+}
+.leaflet-tooltip.skyguard-value::before { display: none; }
