@@ -11,13 +11,55 @@ import type { PropagationMatch } from '@/lib/neighbours';
 import { SENSOR_LABELS, SENSOR_UNITS } from '@/lib/simulation/stations';
 
 /**
- * Weather or hardware?
+ * Weather or hardware? — STAGE 3 of the pipeline.
  *
  * This is the judgement the whole platform exists to make, so it is made by
  * accumulating named, weighted evidence on both sides rather than by a single
  * opaque score. Confidence is simply the share of total evidence weight held
  * by the winning side — which means it can always be explained by listing the
  * evidence, and it can never reach certainty.
+ *
+ * ─── If you read one file in this project, read this one ─────────────────
+ *
+ * `detectors.ts` found that something is unusual. This file decides *why*,
+ * and it is the whole point of the product. Two readings can look identical
+ * on a chart:
+ *
+ *   AWS-007  temperature jumps to 61 °C   → the probe has failed
+ *   AWS-033  temperature falls 7 °C       → a cold front arrived
+ *
+ * Get this wrong in one direction and you erase real weather from the record.
+ * Get it wrong in the other and you publish broken data to whoever depends on
+ * it. Both mistakes are worse than not having the system at all.
+ *
+ * ─── How the decision is made ────────────────────────────────────────────
+ *
+ * Think of a courtroom, not a formula. Each observation is a piece of
+ * evidence with a stated weight, filed on one side or the other:
+ *
+ *   TOWARD HARDWARE FAULT              TOWARD REAL WEATHER
+ *   impossible rate of change   2.5    same signature at neighbours  2.0–3.2
+ *   other channels did not move 2.2    every channel moved together  1.4–2.8
+ *   dew point above air temp    2.0    the digital twin agrees       1.5
+ *   variance jumped             1.6    rate is fast but achievable   1.4
+ *   no neighbour agrees         2.4    external model agrees         1.2
+ *   digital twin disagrees      0.7–2.1  rain observed at the gauge  1.1
+ *
+ *   confidence = winning weight ÷ total weight
+ *
+ * So a verdict of "94% sensor fault" is not a probability from a model; it is
+ * arithmetic over a list the operator can read line by line and disagree
+ * with. That is the difference between a system people trust and one they
+ * eventually switch off.
+ *
+ * ─── Three design decisions worth noticing ───────────────────────────────
+ *
+ *   1. Both sides start at 0.3, so neither can ever reach 100%. A system that
+ *      claims certainty about the physical world is lying.
+ *   2. If the winner holds less than 60% of the weight, the verdict is
+ *      `indeterminate` — "I don't know, a human should look" is a legitimate
+ *      and useful answer, and far better than a confident coin flip.
+ *   3. Some findings skip the weighing entirely (see "dispositive" below).
  */
 
 export interface CrossSensorDeltas {
@@ -61,6 +103,24 @@ export interface ClassifyResult {
  * Cooling air should moisten (RH up) and usually sits near a pressure change;
  * warming air should dry. A probe fault moves one channel and leaves the rest
  * exactly where they were.
+ *
+ * ─── The single most useful idea in the file ─────────────────────────────
+ *
+ * A weather station carries several independent instruments. Weather is a
+ * property of the air, so it moves all of them at once. A fault lives in one
+ * piece of hardware, so it moves exactly one.
+ *
+ *   Real cold front:   temp ↓ 7 °C   humidity ↑ 22%   pressure ↓ 4 hPa
+ *   Failed thermistor: temp ↑ 41 °C  humidity —       pressure —
+ *
+ * The second row is physically incoherent: air that heats by 41 °C without
+ * drying does not exist. You do not need a model to reject it, only the
+ * relationship between the variables.
+ *
+ * Returns 0 (no corroboration at all — suspicious) to 1 (every channel
+ * responded as physics requires). The score is an average over whichever
+ * terms could be evaluated, so a station with a broken hygrometer still
+ * scores on the terms that remain.
  */
 export function coherenceScore(cross: CrossSensorDeltas, sensorType: SensorType): number {
   const dT = cross.temperature;
@@ -71,7 +131,10 @@ export function coherenceScore(cross: CrossSensorDeltas, sensorType: SensorType)
 
   if (dT !== null && dRH !== null && Math.abs(dT) > 0.4) {
     terms++;
-    // Opposite signs is the physically expected response.
+    // Opposite signs is the physically expected response: warm air holds more
+    // moisture, so at constant water content, warming it *lowers* relative
+    // humidity and cooling it raises it. Temperature up + humidity up in the
+    // same breath is a contradiction unless it actually rained.
     const expected = -Math.sign(dT);
     const strength = clamp(Math.abs(dRH) / (Math.abs(dT) * 2.2), 0, 1);
     score += Math.sign(dRH) === expected ? strength : 0;
@@ -116,6 +179,9 @@ export function classify(input: ClassifyInput): ClassifyResult {
   const detectors = new Set(detectorTypes);
 
   // --- Subsystem faults are not a judgement call ---------------------------
+  // A radio that stopped transmitting is not an interesting meteorological
+  // question. There is no weather hypothesis to weigh, so we return
+  // immediately rather than pretending to deliberate.
   if (detectors.has('comms') || detectors.has('missing')) {
     evidence.push(
       ev('comms_loss', 'Telemetry link degraded',
@@ -183,9 +249,17 @@ export function classify(input: ClassifyInput): ClassifyResult {
 
   const coherence = coherenceScore(cross, sensorType);
   const orderedMatches = [...propagation.matches].sort((a, b) => a.lagMinutes - b.lagMinutes);
+  // "Propagated" means at least two relevant neighbours — a third of those
+  // considered — saw the same thing. One neighbour agreeing could be
+  // coincidence; a pattern crossing the network in geographic order is
+  // weather, because weather travels and a broken probe does not.
   const propagated = propagation.coverage >= 0.34 && orderedMatches.length >= 2;
 
-  let faultWeight = 0.3; // Never let either side reach certainty.
+  // Both sides open with the same small prior. Because confidence is a share
+  // of the total, a non-zero starting weight on the losing side mathematically
+  // caps the winner below 100% — the system is structurally incapable of
+  // claiming certainty.
+  let faultWeight = 0.3;
   let weatherWeight = 0.3;
 
   // ---------------------------------------------------------------- FAULT --
@@ -313,15 +387,25 @@ export function classify(input: ClassifyInput): ClassifyResult {
       'weather', 1.1, 'SIMULATED'));
   }
 
+  // ─── The verdict ────────────────────────────────────────────────────────
+  //
+  // Everything above was gathering evidence. This is the entire decision:
+  //
+  //   fault 8.4, weather 1.2  →  share 0.875  →  "sensor fault, 88%"
+  //   fault 1.1, weather 6.9  →  share 0.863  →  "weather event, 86%"
+  //   fault 3.2, weather 3.0  →  share 0.516  →  "indeterminate"
   const total = faultWeight + weatherWeight;
   const faultShare = total > 0 ? faultWeight / total : 0.5;
   const isFault = faultShare >= 0.5;
   const share = isFault ? faultShare : 1 - faultShare;
 
   let classification: Classification = isFault ? 'sensor_fault' : 'meteorological_event';
-  // Genuinely ambiguous cases must say so rather than pick a side.
+  // Genuinely ambiguous cases must say so rather than pick a side. Below 60%
+  // the evidence is close to balanced, and forcing a verdict there would mean
+  // publishing a decision the data does not support.
   if (share < 0.6) classification = 'indeterminate';
 
+  // Strongest evidence first, so the UI leads with the reason that mattered.
   evidence.sort((a, b) => b.weight - a.weight);
 
   return {

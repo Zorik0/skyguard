@@ -23,6 +23,27 @@ import { DEMO_STORY } from '@/lib/simulation/baseline';
  * statuses, acknowledgements, settings) — never derived data. Everything a
  * screen displays is recomputed from these inputs by `buildWorld`, which is
  * what guarantees that no two screens can disagree about the network.
+ *
+ * ─── The rule: store inputs, never outputs ───────────────────────────────
+ *
+ * IN THE STORE                        NOT IN THE STORE
+ * the clock, the seed                 the telemetry
+ * injected scenarios                  the anomalies
+ * the sensitivity dial                the incidents, alerts, health scores
+ * which incidents were acknowledged   anything `buildWorld` can derive
+ * unit and display preferences
+ *
+ * Storing derived data is the classic dashboard bug: the anomaly list gets
+ * cached in state, something updates the telemetry without updating the list,
+ * and now two screens disagree with no single place to look. Keeping only
+ * inputs makes that class of bug unrepresentable — there is nowhere to put a
+ * stale copy.
+ *
+ * Zustand is a small state library: `create()` returns a hook, components
+ * subscribe with a selector such as `useSkyGuard((s) => s.now)`, and only
+ * components whose selected slice actually changed re-render. The `persist`
+ * middleware mirrors part of the state to `localStorage`, so your unit
+ * preferences and acknowledgements survive a page reload.
  */
 
 export interface Settings {

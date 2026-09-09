@@ -7,7 +7,8 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "deck": "node scripts/presentation.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",

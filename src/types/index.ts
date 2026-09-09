@@ -4,6 +4,23 @@
  * The architecture keeps a hard separation between the concepts described in
  * the platform spec: raw telemetry is never mutated, quality-controlled values
  * are derived, and every derived value records its provenance.
+ *
+ * ─── Why a whole file of types with no logic in it ───────────────────────
+ *
+ * These are the nouns of the system. Reading them is the fastest way to
+ * understand what SkyGuard actually models — a `Station` has `Sensor`s, which
+ * produce `RawReading`s, which become `QcReading`s, which may raise an
+ * `Anomaly`, which groups into an `Incident`, which raises an `Alert`.
+ *
+ * TypeScript then enforces those relationships at compile time. If you try to
+ * put a `Station` where an `Anomaly` belongs, you find out while typing rather
+ * than when a chart renders blank in front of an examiner. That is the whole
+ * argument for types: the mistakes you would otherwise make at 2am become
+ * impossible to write down.
+ *
+ * A `type X = 'a' | 'b'` below is a *union* — the value may be exactly one of
+ * those strings and nothing else. `interface` describes the shape of an
+ * object. Neither exists at runtime; they compile away to nothing.
  */
 
 /** Where a displayed value came from. Rendered as a badge next to the value. */
@@ -37,6 +54,19 @@ export type SensorType =
 
 export type Severity = 'info' | 'warning' | 'high' | 'critical';
 
+/**
+ * The verdict on an anomaly — the central output of the whole platform.
+ *
+ *   sensor_fault          the hardware is wrong; publish a corrected value
+ *   meteorological_event  the weather is real; publish it as measured
+ *   communications        packets stopped arriving; data absent, not wrong
+ *   power                 battery or solar subsystem failing
+ *   indeterminate         evidence genuinely balanced; a human should look
+ *
+ * `indeterminate` is not a failure of the classifier. A system that always
+ * picks a side is a system that is confidently wrong some of the time, and
+ * an operator cannot tell which times those are.
+ */
 export type Classification =
   | 'sensor_fault'
   | 'meteorological_event'

@@ -19,8 +19,31 @@ import { SENSOR_LABELS, SENSOR_UNITS } from '@/lib/simulation/stations';
  * A score is only useful if you can see what took it away, so health is built
  * as 100 minus a list of named penalties, and that list travels with the score
  * into the UI.
+ *
+ * ─── Why subtraction rather than a model ─────────────────────────────────
+ *
+ * "Sensor health: 62/100" is useless on its own — an operator cannot act on
+ * it, argue with it, or plan around it. So every score in this file starts at
+ * 100 and has named amounts taken off:
+ *
+ *   100
+ *    -18  calibration 47 days overdue
+ *    -12  drifting +0.31 °C/week against peers
+ *     -8  three anomalies in the last 24 hours
+ *   ────
+ *     62  →  and the list above is what the UI actually shows
+ *
+ * The operator now knows the score, the reasons, and which one to fix first.
+ * A trained model might produce a better-calibrated number, but nobody could
+ * schedule an engineer from it — and scheduling the engineer is the point.
  */
 
+/**
+ * Bands turn a number into a decision. 74 and 76 are not meaningfully
+ * different measurements, but "minor degradation" and "healthy" are different
+ * actions, and a band boundary is where the argument about the threshold
+ * belongs — visible, in one place, rather than scattered through the UI.
+ */
 export const HEALTH_BANDS: {
   min: number;
   max: number;

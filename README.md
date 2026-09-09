@@ -2,7 +2,7 @@
 
 **Intelligent operations and data-quality platform for Automatic Weather Station networks.**
 
-**[Live demo →](https://skyguard-zorikos-projects.vercel.app)**
+**[Live demo →](https://skyguard-zorikos-projects.vercel.app)**  ·  **[Guided code tour →](LEARNING_GUIDE.md)**
 
 A weather station reports 61.4 °C. Is the region on fire, or is the probe broken?
 
@@ -58,6 +58,20 @@ the application works fully without them.
 
 `npm run smoke` needs a running dev server and a local Chrome. Override the
 binary with `CHROME_PATH=...` if yours lives somewhere unusual.
+
+---
+
+## Reading the code
+
+**[LEARNING_GUIDE.md](LEARNING_GUIDE.md)** is a guided tour written for someone
+who has been handed this repository and asked to understand it. It assumes you
+can read JavaScript and nothing about meteorology or statistics: a reading
+order through nine files, every concept defined once, one number traced from
+creation to display, and exercises.
+
+Every file in `src/lib` opens with a comment explaining what it does and why it
+does it that way, so the guide's job is only to tell you which file to open
+next.
 
 ---
 

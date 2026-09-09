@@ -2,11 +2,38 @@ import type { RawReading, RuleTrigger, SensorType, Station, TwinReading } from '
 import { dewPoint, round, toSeaLevel } from '@/lib/utils';
 
 /**
- * Transparent atmospheric consistency rules.
+ * Transparent atmospheric consistency rules — STAGE 2 of the pipeline.
  *
  * Every threshold is configurable and every rule reports both what it observed
  * and the limit it compared against, so an operator can always see *why* a
  * reading was questioned. Nothing here is hidden behind an opaque score.
+ *
+ * ─── Statistics find the unusual; physics finds the impossible ───────────
+ *
+ * `detectors.ts` asks "is this reading far from normal?" — a statistical
+ * question, and one that gives a soft answer. This file asks a harder one:
+ * "could the atmosphere have produced this at all?"
+ *
+ * That distinction matters because the answers carry different force. A 5σ
+ * departure is unusual, and unusual things do happen. A temperature that rose
+ * 40 °C in one minute is not unusual — it is impossible, because air has
+ * thermal mass and there is no mechanism. Impossible is close to proof.
+ *
+ * ─── The six rules ───────────────────────────────────────────────────────
+ *
+ *   rate_of_change        did it move faster than air can?
+ *   range                 is it inside what the instrument can output?
+ *   dewpoint_consistency  is dew point ≤ air temperature? (it must be)
+ *   cross_sensor          did the other channels respond as physics requires?
+ *   neighbour             does the station agree with the network?
+ *   twin                  does it agree with its modelled expectation?
+ *
+ * Every rule returns a `RuleTrigger` whether or not it fired, carrying what it
+ * observed and the limit it compared against. Reporting the rules that passed
+ * is as important as reporting the ones that failed: "we checked six things,
+ * two failed, here they are" is a complete account, and an operator can
+ * disagree with it. A bare "anomaly detected" cannot be argued with, which
+ * means it also cannot be trusted.
  */
 export interface PhysicsConfig {
   /** Maximum plausible air-temperature change between one-minute samples. */
@@ -28,6 +55,19 @@ export interface PhysicsConfig {
   twinTolerance: Partial<Record<SensorType, number>>;
 }
 
+/**
+ * Default limits — every number here is a physical claim you can check.
+ *
+ *   0.8 °C/min      about the fastest a real frontal passage moves surface air
+ *   -48..56 °C      the operating range of the specified thermistor
+ *   870..1085 hPa   near the extremes ever recorded at sea level
+ *   0..113 m/s      408 km/h, comfortably above any surface wind record
+ *
+ * They are set generously on purpose. A limit tight enough to catch every
+ * fault also flags real weather, and the cost of that mistake — erasing a
+ * genuine record — is much higher than the cost of missing a marginal fault,
+ * which the statistical detectors will usually catch anyway.
+ */
 export const DEFAULT_PHYSICS_CONFIG: PhysicsConfig = {
   maxTempRateCPerMin: 0.8,
   maxPressureRateHpaPerMin: 0.35,
@@ -52,6 +92,16 @@ export const DEFAULT_PHYSICS_CONFIG: PhysicsConfig = {
 /**
  * Anomaly sensitivity scales the rule thresholds as a single operator-facing
  * dial. Higher sensitivity narrows every limit proportionally.
+ *
+ *   sensitivity   k      effect
+ *   0             1.5    limits 50% wider — only blatant faults
+ *   50            1.0    as configured
+ *   100           0.5    limits halved — catches more, and cries wolf more
+ *
+ * One dial rather than twelve settings is a deliberate interface decision.
+ * Nobody can reason about twelve interacting thresholds; everybody understands
+ * "more sensitive". The trade-off it exposes — missed faults against false
+ * alarms — is the real one, and it is the operator's call to make.
  */
 export function scaleConfig(base: PhysicsConfig, sensitivity: number): PhysicsConfig {
   // sensitivity 0..100, 50 = as configured.

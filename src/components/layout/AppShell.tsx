@@ -11,10 +11,23 @@ import { useExternalContext, useSimulationClock } from '@/hooks/useExternalConte
 import { isTypingTarget, SHORTCUT_MAP } from '@/lib/navigation';
 
 /**
- * Application shell.
+ * Application shell — sidebar, top bar, command palette and global shortcuts.
  *
  * Mission Control renders without the shell — it is meant for a wall display,
  * where navigation chrome is wasted pixels.
+ *
+ * Two things start here and run for the life of the session:
+ *
+ *   useSimulationClock()   advances the simulation clock, which is what makes
+ *                          the whole world recompute and the data appear live
+ *   useExternalContext()   fetches Open-Meteo and RainViewer, and degrades to
+ *                          a labelled "unavailable" state rather than to
+ *                          invented numbers
+ *
+ * Custom hooks are how React shares stateful behaviour between components.
+ * They are ordinary functions whose names begin with `use` and which may call
+ * other hooks; putting these two here means they are set up exactly once
+ * rather than per page.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -29,6 +42,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   useExternalContext();
 
   // Operator preferences that affect the whole document.
+  //
+  // `useEffect` runs *after* React has painted, and is the correct place for
+  // anything that reaches outside React — here, setting data attributes on
+  // <html> that the CSS then keys off. The array at the end is the dependency
+  // list: re-run only when one of these values actually changes.
   useEffect(() => {
     document.documentElement.dataset.density = density;
     document.documentElement.dataset.motion = reducedAnimation ? 'reduced' : 'normal';

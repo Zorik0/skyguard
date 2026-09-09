@@ -15,6 +15,20 @@ import { CLASSIFICATION_LABELS } from '@/lib/anomaly/classify';
 import { DEMO_STORY } from '@/lib/simulation/baseline';
 import { NETWORK_NAME } from '@/lib/simulation/stations';
 
+/**
+ * The network overview — the landing page, and a good example of how thin
+ * every page in this app is.
+ *
+ * Notice what this component does NOT do: no fetching, no detection, no
+ * statistics, no analysis of any kind. It calls `useResolvedWorld()`, gets the
+ * finished object, and arranges it on screen. Every page here works this way,
+ * which is why they cannot disagree with one another.
+ *
+ * The `'use client'` at the top of the file marks this as a Client Component:
+ * it runs in the browser and may use hooks and event handlers. The pages need
+ * it because the whole simulation runs client-side — there is no server and no
+ * database.
+ */
 export default function OverviewPage() {
   const world = useResolvedWorld();
   const snapshot = useSelectedStation();
@@ -22,6 +36,10 @@ export default function OverviewPage() {
   const externalMessage = useSkyGuard((s) => s.externalMessage);
   const mode = useSkyGuard((s) => s.mode);
 
+  // The world is null until the store has hydrated from localStorage on the
+  // client. Rendering nothing for that first frame avoids a hydration
+  // mismatch — the error React raises when the server's HTML and the client's
+  // first render disagree.
   if (!world || !snapshot) return null;
 
   const m = world.metrics;

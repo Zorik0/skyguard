@@ -23,6 +23,27 @@ import { anomalyTitle, buildNarrative, recommendedAction } from './narrative';
 import { SCANNED_SENSORS, scanSensor, scanSubsystems, type Episode } from './detectors';
 import { SENSOR_LABELS } from '@/lib/simulation/stations';
 
+/**
+ * The analysis pipeline — where the four stages are wired together.
+ *
+ * This file is the conductor. It owns very little logic of its own; what it
+ * does is walk every station and every channel, calling each stage in turn and
+ * carrying the result forward:
+ *
+ *   detectors.ts   scanSensor()        →  is anything unusual here?
+ *   physics/rules  evaluatePhysics()   →  which physical laws does it break?
+ *   neighbours.ts  findPropagation()   →  did anyone else see it?
+ *   classify.ts    classify()          →  weather or hardware?
+ *   ensemble.ts    computeCorrection() →  what should it have read?
+ *   narrative.ts   buildNarrative()    →  say all of that in English
+ *
+ * The output is an `Anomaly[]` — self-contained records carrying the evidence,
+ * the rules, the verdict, the correction and the recommended action, so every
+ * screen can explain a finding without re-deriving it.
+ *
+ * Read `analyseNetwork` at the bottom for the loop structure; the helpers
+ * above it prepare the inputs each stage needs.
+ */
 export interface AnalysisContext {
   stations: Station[];
   seriesById: Map<string, StationSeries>;
@@ -35,6 +56,12 @@ export interface AnalysisContext {
   stepMs: number;
 }
 
+/**
+ * Second gate on reporting: an episode may fire every detector in the file
+ * and still not be worth an operator's attention if the actual departure is
+ * trivially small. Alarm fatigue is a real failure mode — a system that cries
+ * wolf gets muted, and then it catches nothing at all.
+ */
 const MIN_DELTA_FOR_REPORT: Partial<Record<SensorType, number>> = {
   temperature: 1.6,
   humidity: 6,

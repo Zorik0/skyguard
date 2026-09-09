@@ -20,6 +20,34 @@ import {
  * against each other. That is only possible because this is a simulation, and
  * it is stated plainly wherever the numbers are shown: on real hardware you
  * would not have this label, which is precisely why explainability matters.
+ *
+ * ─── Precision and recall, which every project like this needs ───────────
+ *
+ * "Accuracy" is a trap here. Faults occupy perhaps 40 minutes of a 1440-minute
+ * day, so a detector that reports "no fault, ever" scores 97% accurate and is
+ * completely useless. Two numbers are needed instead:
+ *
+ *   PRECISION = true positives ÷ everything I flagged
+ *               "when I raise an alarm, how often am I right?"
+ *               Low precision → operators stop trusting the alerts.
+ *
+ *   RECALL    = true positives ÷ every fault that actually happened
+ *               "of the real faults, how many did I catch?"
+ *               Low recall → broken data reaches whoever depends on it.
+ *
+ * They trade against each other, and the trade is the interesting part. Lower
+ * the threshold and recall rises while precision falls; raise it and the
+ * reverse. There is no setting that maximises both, so choosing one is an
+ * operational decision about which mistake costs more — which is exactly why
+ * this page exposes the dial rather than hiding it.
+ *
+ * ─── The honest caveat, worth saying out loud in a viva ──────────────────
+ *
+ * These scores exist only because a simulator knows which minutes were faults.
+ * Real hardware never comes with that label. That is not a weakness of the
+ * demonstration — it is the reason the production path publishes evidence and
+ * rules rather than a score alone: those can be checked by a human on data
+ * that has no ground truth at all.
  */
 
 export interface ModelSpec {
@@ -115,20 +143,7 @@ export interface LabEvaluation {
 }
 
 /**
- * A one-dimensional Isolation Forest score.
- *
- * This follows the real algorithm's shape — build trees by splitting a random
- * subsample at random points, measure how few splits it takes to isolate the
- * value, and normalise the average depth by the expected depth for that
- * subsample size — so a typical point lands near 50 and a genuine outlier
- * climbs toward 100.
- *
- * It is still a stand-in: nothing here is fitted, and it is marked as simulated
- * everywhere it is shown. But it is calibrated the way the real score is,
- * rather than being a threshold dressed up as a model.
- */
-/**
- * Isolation Forest.
+ * Isolation Forest — the one genuine machine-learning model in the codebase.
  *
  * The real algorithm, implemented properly rather than approximated: a forest
  * is *fitted once* over the whole window, each tree splitting a random
@@ -143,6 +158,43 @@ export interface LabEvaluation {
  *
  * Nothing here is trained on labels; it is an unsupervised fit over the
  * window being examined, and it is marked as simulated wherever it is shown.
+ *
+ * ─── The idea, which is unusually elegant ────────────────────────────────
+ *
+ * Most outlier detectors describe what *normal* looks like and measure
+ * distance from it. Isolation Forest inverts the problem: outliers are easier
+ * to separate from everything else, so just count how much effort separation
+ * takes.
+ *
+ * Build a tree by repeatedly picking a random feature and a random split point
+ * until every point sits alone. Then ask how deep each point ended up:
+ *
+ *   ordinary point   surrounded by neighbours, needs ~12 splits to isolate
+ *   outlier          sitting alone in empty space, isolated in ~3
+ *
+ * Average that depth over 32 independently random trees and the noise cancels
+ * out. Short average path → anomaly.
+ *
+ * ─── Why it is unsupervised, and why that matters ────────────────────────
+ *
+ * It is never shown which samples are faults. It is handed the window and
+ * finds the odd ones out on structure alone. That is the honest setting for
+ * this problem: real hardware does not arrive labelled, so a supervised model
+ * would need someone to hand-label thousands of faults first.
+ *
+ * ─── The maths, in three lines ───────────────────────────────────────────
+ *
+ *   c(n)     = 2·(ln(n−1) + γ) − 2(n−1)/n     expected path in a random tree
+ *   score    = 2^(−averagePath / c(n))         normalise to 0..1
+ *   0.5      = ordinary · toward 1 = anomalous · toward 0 = deep in a cluster
+ *
+ * γ ≈ 0.5772 is the Euler–Mascheroni constant, which appears because c(n) is
+ * derived from the harmonic series. Dividing by c(n) is what makes scores from
+ * differently-sized subsamples comparable.
+ *
+ * The `size` field on a leaf handles trees cut off at max depth: rather than
+ * pretending those points were isolated, the leaf is charged the expected
+ * remaining depth for the points still in it.
  */
 const ISO_TREES = 32;
 const ISO_SUBSAMPLE = 128;

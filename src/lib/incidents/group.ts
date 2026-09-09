@@ -14,12 +14,38 @@ import { makeRng } from '@/lib/rng';
 import { CLASSIFICATION_LABELS } from '@/lib/anomaly/classify';
 
 /**
- * Incident correlation.
+ * Incident correlation — STAGE 5 of the pipeline.
  *
  * Twenty anomalies caused by one front are one operational event, not twenty.
  * Anomalies are therefore clustered — meteorological ones across the whole
  * network, hardware ones per station — and every downstream surface (alerts,
  * notifications, reports) works from the incident rather than the raw anomaly.
+ *
+ * ─── The operational problem this solves ─────────────────────────────────
+ *
+ * A cold front crossing twelve stations legitimately produces sixty anomalies:
+ * temperature, humidity and pressure at each site, all real, all correctly
+ * detected. Show those as sixty alerts and the operator is worse off than with
+ * no system at all — the signal is buried in its own success, and the first
+ * thing they will do is turn the alerts off.
+ *
+ * Grouping is the difference between "60 anomalies" and:
+ *
+ *   ▸ Cold front, 12 stations, 14:20–16:45 — genuine weather, no action
+ *   ▸ AWS-007 temperature probe failure — corrected, engineer dispatched
+ *
+ * ─── The two clustering rules, and why they differ ───────────────────────
+ *
+ *   meteorological  cluster across the WHOLE NETWORK by time
+ *                   → weather is one shared event affecting many stations
+ *
+ *   hardware        cluster PER STATION by time
+ *                   → two stations failing at once is a coincidence, not a
+ *                     cause; merging them would invent a relationship and
+ *                     send one engineer to fix two unrelated things
+ *
+ * That asymmetry is the whole insight of the file. It follows directly from
+ * what the two phenomena physically are.
  */
 
 const SEVERITY_ORDER: Record<Severity, number> = { critical: 0, high: 1, warning: 2, info: 3 };
@@ -31,7 +57,21 @@ function worstSeverity(anomalies: Anomaly[]): Severity {
   );
 }
 
-/** Greedy temporal clustering: extend a cluster while anomalies keep arriving. */
+/**
+ * Greedy temporal clustering: extend a cluster while anomalies keep arriving.
+ *
+ * Sort by start time, then walk the list: if the next anomaly begins within
+ * `gapMs` of the end of the current cluster, it joins; otherwise it starts a
+ * new one.
+ *
+ *   |--A--|  |--B--|      |--C--|
+ *          ↑gap↑     ↑ bigger gap ↑
+ *   A and B are one incident; C is separate.
+ *
+ * "Greedy" means it never reconsiders a decision once made. That is not
+ * optimal in general, but for events on a timeline it is both correct enough
+ * and O(n log n) — dominated by the sort.
+ */
 function clusterByTime(anomalies: Anomaly[], gapMs: number): Anomaly[][] {
   const sorted = [...anomalies].sort((a, b) => a.startedAt - b.startedAt);
   const clusters: Anomaly[][] = [];

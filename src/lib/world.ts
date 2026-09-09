@@ -40,7 +40,7 @@ import {
 import { buildMaintenanceTasks, computeSensorHealth, stationHealthScore } from '@/lib/health/score';
 
 /**
- * The single source of truth for every screen.
+ * The single source of truth for every screen. START HERE.
  *
  * One pure function turns (seed, events, clock) into the entire application
  * state: telemetry, anomalies, incidents, alerts, health, maintenance and the
@@ -48,6 +48,44 @@ import { buildMaintenanceTasks, computeSensorHealth, stationHealthScore } from '
  * injected at AWS-007 necessarily appears on the overview, the map, the health
  * matrix, the alert list and the audit log at the same instant — there is no
  * second copy of the data that could disagree.
+ *
+ * ─── The architectural idea, and why it is worth copying ─────────────────
+ *
+ * The usual way to build a dashboard is to give each page its own data
+ * fetching and its own state. It works right up until two pages disagree, and
+ * then you are hunting a bug that exists only in the gap between them — the
+ * overview says 3 anomalies, the anomaly list shows 4, and neither is wrong
+ * according to its own code.
+ *
+ * SkyGuard has exactly one such gap: none.
+ *
+ *   buildWorld({ seed, events, now })  →  World  →  every page reads from it
+ *
+ * The pages contain no analysis at all. They are pure presentation over one
+ * object, so the overview and the alert list *cannot* disagree — they are
+ * looking at the same array.
+ *
+ * ─── "Pure function" — the property everything rests on ──────────────────
+ *
+ * Same inputs → same output, every time, with no side effects: no network
+ * calls, no Math.random(), no reading the clock, no mutation of anything it
+ * was given. That buys three things at once:
+ *
+ *   testable    call it with a seed, assert on the result
+ *   cacheable   same inputs? reuse the last answer (see hooks/useWorld.ts)
+ *   debuggable  a bug reproduces from three values you can write down
+ *
+ * ─── The six stages, in order ────────────────────────────────────────────
+ *
+ *   1. Telemetry     simulate 24h × 12 stations       simulation/engine.ts
+ *   2. Relevance     who is a good reference for whom  neighbours.ts
+ *   3. Analysis      detect → physics → classify → correct   anomaly/analyze.ts
+ *   4. Correlation   group anomalies into incidents    incidents/group.ts
+ *   5. Health        per-sensor scores, QC series      health/score.ts
+ *   6. Roll-up       the network-level headline numbers
+ *
+ * A full rebuild is about 200 ms and is memoised against the exact inputs
+ * that produced it, so a re-render costs nothing.
  */
 
 export interface WorldOptions {
@@ -78,6 +116,7 @@ export interface NetworkMetrics {
   totalSensors: number;
 }
 
+/** Everything every screen needs, computed once. */
 export interface World {
   now: number;
   from: number;
@@ -100,6 +139,14 @@ export interface World {
   config: PhysicsConfig;
 }
 
+/**
+ * Channels a corrected value can be produced for.
+ *
+ * Battery voltage and signal strength are excluded on purpose: there is
+ * nothing to reconstruct them from. A neighbour's battery tells you nothing
+ * about this station's battery, because they are not measuring a shared
+ * physical quantity the way two thermometers in the same air mass are.
+ */
 const CORRECTABLE: SensorType[] = ['temperature', 'humidity', 'pressure', 'wind_speed', 'rainfall'];
 
 export interface DriftMeasurement {
@@ -170,6 +217,20 @@ function computeDriftRates(
  * Raw readings are copied, never mutated. Corrections are carried across the
  * whole episode by anchoring the peak estimate to the digital twin's shape, so
  * the corrected trace follows real conditions rather than sitting flat.
+ *
+ * This produces the second of the two traces you see on every chart:
+ *
+ *   raw   what the instrument actually reported, untouched, forever
+ *   qc    the same readings plus a quality flag per channel, and a corrected
+ *         value wherever one was justified
+ *
+ * Note `series.raw.map((r) => ({ ...r, ... }))` on the next line — the spread
+ * copies each reading rather than adding fields to it. The raw array the rest
+ * of the app holds is never touched.
+ *
+ * Flags are the vocabulary of data quality: `good`, `missing`, `suspect`,
+ * `corrected`. A downstream consumer can then choose its own policy — take
+ * everything, take only `good`, or take corrected values with their intervals.
  */
 function buildQcSeries(series: StationSeries, anomalies: Anomaly[], stepMs: number, from: number): QcReading[] {
   const qc: QcReading[] = series.raw.map((r) => ({
@@ -304,6 +365,13 @@ function buildHistory(station: Station, now: number) {
   };
 }
 
+/**
+ * Build the entire application state.
+ *
+ * The six numbered stages below are the whole system. Each one consumes the
+ * output of the last, and every heavy step lives in its own module — this
+ * function is the assembly line, not the machinery.
+ */
 export function buildWorld(options: WorldOptions): World {
   const { now, seed, injectedEvents, sensitivity, external, includeBaseline } = options;
   const from = now - SIM_WINDOW_MS;
@@ -330,6 +398,10 @@ export function buildWorld(options: WorldOptions): World {
   );
 
   // 3. Detection, classification and correction ----------------------------
+  // One operator dial drives every threshold in the system. Sensitivity 50
+  // leaves the configured limits alone; higher narrows them (catch more, risk
+  // more false alarms), lower widens them. Exposing a single honest dial is
+  // far better than twelve settings nobody can reason about together.
   const config = scaleConfig(DEFAULT_PHYSICS_CONFIG, sensitivity);
   const zThreshold = clamp(4 + (50 - sensitivity) / 12, 2.2, 9);
   const anomalies = analyseNetwork({
@@ -345,6 +417,9 @@ export function buildWorld(options: WorldOptions): World {
   });
 
   // 4. Correlation into incidents ------------------------------------------
+  // Twenty anomalies caused by one cold front are one incident, not twenty
+  // alerts. Without this step an operator drowns in notifications during
+  // exactly the weather they most need to be watching.
   const incidents = buildIncidents(anomalies, stations, now);
   const signatures = buildSignatures(anomalies);
   const alerts = buildAlerts(anomalies, now);

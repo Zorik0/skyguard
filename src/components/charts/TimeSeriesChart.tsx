@@ -27,6 +27,23 @@ import { formatSensorValue } from '@/lib/units';
  *
  * Shaded regions carry meaning: blue for a genuine meteorological event,
  * orange for a probable sensor fault, grey hatching for missing data.
+ *
+ * ─── Reading the traces ──────────────────────────────────────────────────
+ *
+ *   raw          what the instrument reported — never modified
+ *   twin         what a perfect instrument at this site should have read
+ *   corrected    the ensemble estimate, drawn only across a fault
+ *   neighbours   the relevance-weighted consensus from other stations
+ *
+ * Showing all four at once is the point. A student — or an examiner — can see
+ * the raw trace leave the other three and come back, which is the visual form
+ * of the entire argument the classifier makes in prose.
+ *
+ * ─── The one accessibility rule this file obeys ──────────────────────────
+ *
+ * No state is signalled by colour alone. Every shaded region carries a text
+ * label as well, because roughly 8% of men have some form of colour vision
+ * deficiency, and "the orange band" is not information they receive.
  */
 
 export const TRACE_COLORS = {

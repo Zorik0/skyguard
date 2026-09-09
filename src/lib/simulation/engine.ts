@@ -27,16 +27,66 @@ import { isMeteorological, type SimEvent } from './events';
  *
  * Nothing calls Math.random(); every perturbation is a pure function of the
  * seed and the timestamp.
+ *
+ * ─── Why the two stages must stay separate ───────────────────────────────
+ *
+ * This is the most important design decision in the simulator, and it is easy
+ * to get wrong. A naive simulator generates each station's readings
+ * independently and then "adds a cold front" by nudging several stations. The
+ * result looks plausible on a chart and is useless for testing, because the
+ * stations were never actually sharing an atmosphere — the detection code
+ * would be validated against a coincidence rather than a physical fact.
+ *
+ * Here there is exactly one atmosphere:
+ *
+ *   STAGE 1 — the truth              regionalField(t)
+ *     one shared field, sampled by all twelve stations, adjusted per site
+ *     for elevation, terrain and distance from the ocean. Cold fronts, heat
+ *     waves and rainfall are applied HERE.
+ *
+ *   STAGE 2 — the measurement        per-station hardware
+ *     each station observes that truth through imperfect instruments: noise,
+ *     calibration offsets, packet loss, and injected faults. Faults are
+ *     applied HERE and nowhere else.
+ *
+ * The consequence is that the properties the classifier relies on are not
+ * simulated — they emerge. A front automatically appears at every station in
+ * geographic order because they all sample the same moving field. A spike
+ * automatically appears at exactly one station because it was added after the
+ * field was sampled. Neither behaviour is coded anywhere; both fall out of the
+ * structure, which is the only reason the detection code is genuinely being
+ * tested rather than being told the answer.
+ *
+ * The output is two parallel series:
+ *
+ *   raw   what the station reported, faults and all
+ *   twin  what a perfect instrument at that site would have reported —
+ *         the "digital twin", used as ground truth for evaluation
  */
 
-/** Local solar time offset for the Pacific Northwest network. */
+/**
+ * Local solar time offset for the Pacific Northwest network.
+ *
+ * Needed because the diurnal cycle is driven by the sun, not by UTC: peak
+ * heating is mid-afternoon *local* time wherever the network happens to be.
+ */
 const UTC_OFFSET_HOURS = -8;
 /** Environmental lapse rate, °C per metre. */
 const LAPSE_RATE = 0.0065;
 
+/** One sample per minute — 1440 readings per station per day. */
 export const SIM_STEP_MS = MINUTE;
-/** Timing error baked into the digital twin, in milliseconds. */
+/**
+ * Timing error baked into the digital twin, in milliseconds.
+ *
+ * Deliberate imperfection. A twin that matched the truth exactly would make
+ * detection trivial and the evaluation meaningless — you would be testing
+ * against an oracle no real deployment ever has. Six minutes of lag is roughly
+ * what a real forecast-driven twin achieves, so the detectors have to cope
+ * with a reference that is close but not right.
+ */
 const TWIN_LAG_MS = 6 * MINUTE;
+/** A rolling 24-hour window: enough for daily cycles, small enough to be fast. */
 export const SIM_WINDOW_MS = 24 * HOUR;
 
 interface RegionalField {
@@ -79,6 +129,25 @@ function ramp(x: number) {
  * Front geometry: the origin sits off the north-west corner of the network and
  * the system travels south-east, so arrival time is a projection of the
  * station onto the direction of travel.
+ *
+ * ─── How a front is made to travel ───────────────────────────────────────
+ *
+ * A weather front is a line of air-mass change sweeping across the map at a
+ * real speed. Rather than scripting "station 3 changes at 14:20", the geometry
+ * is computed:
+ *
+ *   1. take the vector from the front's origin to the station
+ *   2. project it onto the direction of travel (a dot product)
+ *   3. divide that distance by the front's speed → arrival time
+ *
+ * The dot product `dx·ux + dy·uy` is the standard way to ask "how far along
+ * this direction is that point?" — perpendicular offset contributes nothing,
+ * which is exactly right for a front that arrives as a line rather than a
+ * point.
+ *
+ * At 46 km/h across a ~300 km network, stations light up over about six and a
+ * half hours in strict west-to-east order. That ordering is what
+ * `findPropagation` later detects, and nobody had to write it down.
  */
 const FRONT_ORIGIN: [number, number] = [46.9, -124.9];
 const FRONT_BEARING_DEG = 128;
@@ -109,6 +178,11 @@ function regionalField(t: number, seed: number, events: SimEvent[]): RegionalFie
   const days = t / (24 * HOUR);
 
   // Diurnal cycle peaks mid-afternoon, bottoms just before dawn.
+  //
+  // A cosine wave over 24 hours, shifted so its maximum lands at 15:30 local.
+  // The lag behind solar noon is real: the ground keeps absorbing more heat
+  // than it radiates for a few hours after the sun's peak, which is why the
+  // warmest part of the day is not midday.
   const diurnal = Math.cos(((lh - 15.5) / 24) * 2 * Math.PI);
   const synoptic = fbm(seed, days * 3.1, 4);
   const slow = fbm(seed + 991, days * 1.3, 3);

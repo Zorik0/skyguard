@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SkyGuard — Presentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0e13; --panel:#10161d; --raised:#161d26;
+    --line:#232c37; --line-2:#2f3b49;
+    --ink:#e7edf3; --ink-2:#8593a2; --ink-3:#5a6673;
+    --orange:#f0894d; --amber:#f2b443; --teal:#3ed9c9; --blue:#5c8df6; --red:#ef5d5d;
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;font-feature-settings:"kern","liga"}
+
+  .slide{
+    width:1280px;height:720px;position:relative;overflow:hidden;
+    background:var(--bg);page-break-after:always;break-after:page;
+    padding:56px 72px 64px;display:flex;flex-direction:column;
+  }
+  .slide:last-child{page-break-after:auto;break-after:auto}
+
+  /* ---- chrome ---- */
+  .rail{position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--orange)}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--orange);font-weight:500}
+  .foot{position:absolute;left:72px;right:72px;bottom:24px;display:flex;
+    justify-content:space-between;align-items:center;font-family:var(--mono);
+    font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);
+    border-top:1px solid var(--line);padding-top:12px}
+  .foot .n{color:var(--orange);font-weight:500}
+
+  h1{font-size:76px;font-weight:700;letter-spacing:-.035em;line-height:1}
+  h2{font-size:42px;font-weight:600;letter-spacing:-.025em;line-height:1.1;margin-top:14px}
+  h3{font-size:17px;font-weight:600;letter-spacing:-.01em}
+  .lede{font-size:20px;line-height:1.5;color:var(--ink-2);font-weight:300;max-width:60ch}
+  p{font-size:15px;line-height:1.6;color:var(--ink-2)}
+  strong{color:var(--ink);font-weight:600}
+  .or{color:var(--orange)}
+  .hr{height:1px;background:var(--line);margin:22px 0}
+
+  .body{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0}
+  .top{margin-bottom:26px}
+
+  /* ---- panels ---- */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:20px 22px}
+  .panel.accent{border-color:color-mix(in srgb,var(--orange) 42%,var(--line))}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+
+  .tag{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-3);display:block;margin-bottom:10px}
+
+  ul{list-style:none}
+  li{font-size:15px;line-height:1.55;color:var(--ink-2);padding-left:20px;position:relative;
+    margin-bottom:11px}
+  li::before{content:'';position:absolute;left:0;top:9px;width:7px;height:1px;background:var(--orange)}
+  li:last-child{margin-bottom:0}
+
+  code,.mono{font-family:var(--mono);font-size:13px;color:var(--ink)}
+  .code{font-family:var(--mono);font-size:13px;line-height:1.75;color:var(--ink-2);
+    background:var(--panel);border:1px solid var(--line);border-left:2px solid var(--orange);
+    border-radius:3px;padding:16px 20px;white-space:pre}
+  .code b{color:var(--orange);font-weight:500}
+  .code i{color:var(--teal);font-style:normal}
+
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--ink-3);text-align:left;font-weight:500;padding:0 12px 10px 0;
+    border-bottom:1px solid var(--line-2)}
+  td{padding:11px 12px 11px 0;border-bottom:1px solid var(--line);color:var(--ink-2);
+    vertical-align:top;line-height:1.45}
+  tr:last-child td{border-bottom:none}
+  td.k{color:var(--ink);font-weight:500;white-space:nowrap}
+
+  .stat{font-family:var(--mono);font-size:44px;font-weight:700;letter-spacing:-.03em;color:var(--orange);line-height:1}
+  .stat.sm{font-size:32px}
+  .statlabel{font-size:12px;color:var(--ink-3);margin-top:8px;line-height:1.4}
+
+  .pill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+    text-transform:uppercase;padding:4px 9px;border-radius:2px;border:1px solid;font-weight:500}
+  .pill.fault{color:var(--orange);border-color:color-mix(in srgb,var(--orange) 45%,transparent);
+    background:color-mix(in srgb,var(--orange) 10%,transparent)}
+  .pill.weather{color:var(--blue);border-color:color-mix(in srgb,var(--blue) 45%,transparent);
+    background:color-mix(in srgb,var(--blue) 10%,transparent)}
+  .pill.ok{color:var(--teal);border-color:color-mix(in srgb,var(--teal) 45%,transparent);
+    background:color-mix(in srgb,var(--teal) 10%,transparent)}
+
+  /* pipeline */
+  .flow{display:flex;align-items:stretch;gap:0}
+  .flow .step{flex:1;padding:22px 20px;background:var(--panel);border:1px solid var(--line);
+    border-right:none;position:relative}
+  .flow .step:last-child{border-right:1px solid var(--line)}
+  .flow .step:first-child{border-radius:4px 0 0 4px}
+  .flow .step:last-child{border-radius:0 4px 4px 0}
+  .flow .num{font-family:var(--mono);font-size:10px;color:var(--orange);letter-spacing:.14em;
+    font-weight:500;margin-bottom:9px}
+  .flow .ttl{font-size:19px;font-weight:600;color:var(--ink);letter-spacing:-.01em;margin-bottom:7px}
+  .flow .sub{font-size:12.5px;color:var(--ink-3);line-height:1.45}
+
+  /* evidence scale bars */
+  .bar{height:24px;border-radius:2px;display:flex;align-items:center;padding:0 10px;
+    font-family:var(--mono);font-size:11px;font-weight:500;white-space:nowrap}
+  .bar.f{background:color-mix(in srgb,var(--orange) 26%,var(--panel));color:var(--orange)}
+  .bar.w{background:color-mix(in srgb,var(--blue) 22%,var(--panel));color:var(--blue)}
+  .evrow{display:grid;grid-template-columns:1fr 62px;gap:12px;align-items:center;margin-bottom:9px}
+  .evrow .lbl{font-size:13px;color:var(--ink-2)}
+  .evrow .wt{font-family:var(--mono);font-size:12px;color:var(--ink-3);text-align:right}
+</style>
+</head>
+<body>
+
+<!-- 01 ─────────────────────────────────────────────────────── TITLE -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="body">
+    <div class="kicker">Automatic Weather Station Networks</div>
+    <h1 style="margin-top:22px">Sky<span class="or">Guard</span></h1>
+    <p class="lede" style="margin-top:26px;font-size:23px;color:var(--ink)">
+      A weather station reports <span class="or" style="font-family:var(--mono);font-weight:500">61.4&nbsp;°C</span>.<br>
+      Is the region on fire, or is the probe broken?
+    </p>
+    <div class="hr" style="max-width:520px;margin:32px 0 26px"></div>
+    <p style="font-size:17px;max-width:66ch;line-height:1.65">
+      An intelligent operations and data-quality platform that answers that question,
+      <strong>shows its working</strong>, estimates what the true value probably was, and
+      tells the operator what to do — <strong>without ever overwriting the original
+      measurement</strong>.
+    </p>
+    <div style="margin-top:34px;display:flex;gap:10px">
+      <span class="pill fault">Detect</span>
+      <span class="pill fault">Explain</span>
+      <span class="pill fault">Correct</span>
+      <span class="pill fault">Act</span>
+    </div>
+  </div>
+  <div class="foot"><span>SkyGuard · zoriko.space</span><span class="n">01</span></div>
+</section>
+
+<!-- 02 ─────────────────────────────────────────────────── THE PROBLEM -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="top">
+    <div class="kicker">01 · The Problem</div>
+    <h2>Every anomaly is two different problems<br>wearing the same clothes</h2>
+  </div>
+  <div class="body">
+    <div class="grid2">
+      <div class="panel accent">
+        <span class="tag">Failure mode A</span>
+        <h3 style="color:var(--orange);font-size:19px">Call real weather a fault</h3>
+        <p style="margin-top:12px">You "correct" a genuine heatwave out of the record.
+          The archive now says something that never happened — and climate records
+          are read for <strong>decades</strong>.</p>
+        <div class="hr"></div>
+        <p style="font-size:13.5px;color:var(--ink-3)">The original measurement is gone.
+          No later improvement to the model can recover it.</p>
+      </div>
+      <div class="panel accent">
+        <span class="tag">Failure mode B</span>
+        <h3 style="color:var(--orange);font-size:19px">Publish a broken probe</h3>
+        <p style="margin-top:12px">61.4&nbsp;°C flows into every forecast, flood model,
+          agricultural advisory and insurance calculation downstream of you.</p>
+        <div class="hr"></div>
+        <p style="font-size:13.5px;color:var(--ink-3)">Nobody downstream can tell.
+          The number looks exactly like a measurement.</p>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:22px;border-color:var(--line-2)">
+      <p style="font-size:16px;color:var(--ink)">
+        A platform that treats these the same is <strong>worse than no platform at all</strong> —
+        it either erases real weather or ships broken data, and does so with the
+        authority of an automated system.
+      </p>
+    </div>
+  </div>
+  <div class="foot"><span>The Problem</span><span class="n">02</span></div>
+</section>
+
+<!-- 03 ────────────────────────────────────────────────── THE CONTRAST -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="top">
+    <div class="kicker">02 · The Contrast</div>
+    <h2>Two events. Same night. Same network.</h2>
+  </div>
+  <div class="body">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:23%"></th>
+          <th style="width:38.5%;color:var(--orange)">AWS-007 · Marion Ridge</th>
+          <th style="width:38.5%;color:var(--blue)">AWS-033 · Newport Headland</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="k">What happened</td>
+          <td>Temperature jumps to ~61&nbsp;°C in one minute</td>
+          <td>Temperature falls ~7&nbsp;°C over 40 minutes</td>
+        </tr>
+        <tr><td class="k">Humidity</td><td>Unchanged</td><td>Rises as the air moistens</td></tr>
+        <tr><td class="k">Pressure</td><td>Unchanged</td><td>Digs a trough, then recovers</td></tr>
+        <tr>
+          <td class="k">Neighbours</td>
+          <td>Nothing, anywhere in the network</td>
+          <td>The same signature — <strong>in geographic order</strong></td>
+        </tr>
+        <tr>
+          <td class="k">Rate of change</td>
+          <td>Violates the physical limit</td>
+          <td>Fast, but physically achievable</td>
+        </tr>
+        <tr>
+          <td class="k">Verdict</td>
+          <td><span class="pill fault">Sensor fault · 98%</span></td>
+          <td><span class="pill weather">Genuine weather event</span></td>
+        </tr>
+        <tr>
+          <td class="k">Action</td>
+          <td>Corrected value published,<br>maintenance task raised</td>
+          <td>Nothing. Published as measured.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="foot"><span>The Contrast</span><span class="n">03</span></div>
+</section>
+
+<!-- 04 ──────────────────────────────────────────────────── PIPELINE -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="top">
+    <div class="kicker">03 · Approach</div>
+    <h2>Four stages, and every one of them explains itself</h2>
+  </div>
+  <div class="body">
+    <div class="flow">
+      <div class="step">
+        <div class="num">STAGE 01</div>
+        <div class="ttl">Detect</div>
+        <div class="sub">Seven statistical tests per channel. Z-score against a
+          90-minute trailing baseline, rate limits, frozen channels, variance
+          steps, drift, range.</div>
+      </div>
+      <div class="step">
+        <div class="num">STAGE 02</div>
+        <div class="ttl">Explain</div>
+        <div class="sub">Physics rules, neighbour comparison and propagation
+          search. Weather or hardware — decided by weighted, named evidence.</div>
+      </div>
+      <div class="step">
+        <div class="num">STAGE 03</div>
+        <div class="ttl">Correct</div>
+        <div class="sub">Five independent estimators combined, with a prediction
+          interval from their disagreement. The raw value is never touched.</div>
+      </div>
+      <div class="step">
+        <div class="num">STAGE 04</div>
+        <div class="ttl">Act</div>
+        <div class="sub">Anomalies correlate into incidents, incidents raise
+          alerts and maintenance tasks, every decision lands in an audit log.</div>
+      </div>
+    </div>
+    <div class="grid3" style="margin-top:26px">
+      <div class="panel">
+        <span class="tag">No black box</span>
+        <p style="font-size:14px">The score is a weighted sum of <strong>named tests</strong>,
+          and the tests travel with it into the interface.</p>
+      </div>
+      <div class="panel">
+        <span class="tag">No certainty</span>
+        <p style="font-size:14px">Confidence can never reach 100%. Balanced evidence
+          returns <strong>indeterminate</strong>, not a coin flip.</p>
+      </div>
+      <div class="panel">
+        <span class="tag">No destruction</span>
+        <p style="font-size:14px">A correction is an <strong>additional record</strong>.
+          The raw export still contains the fault.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Approach</span><span class="n">04</span></div>
+</section>
+
+<!-- 05 ─────────────────────────────────────────────────── DETECTION -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="top">
+    <div class="kicker">04 · Stage One</div>
+    <h2>Detection — measuring "unusual" in units of usual</h2>
+  </div>
+  <div class="body">
+    <div class="grid2" style="align-items:start">
+      <div>
+        <div class="code">z = |value − baseline mean|
+    ────────────────────
+       baseline σ
+
+<b>z = 1</b>   entirely ordinary
+<b>z = 2</b>   uncommon        ≈ 5%
+<b>z = 3</b>   rare            ≈ 0.3%
+<b>z = 4</b>   the alarm point</div>
+        <p style="margin-top:18px;font-size:14px">
+          Unit-free, so one threshold serves °C, hPa and m/s alike — and it
+          <strong>adapts automatically</strong>. The same 2&nbsp;°C move is alarming on
+          a calm channel and unremarkable on a volatile one.
+        </p>
+      </div>
+      <div>
+        <div class="panel">
+          <span class="tag">The detail that decides whether it works</span>
+          <h3 style="margin-bottom:12px">A six-minute guard band</h3>
+          <div class="code" style="font-size:11.5px;line-height:1.6;border-left-color:var(--line-2)">├──── baseline: 90 min ────┤├guard┤│
+                                   <b>↑ sample under test</b></div>
+          <p style="margin-top:14px;font-size:14px">The baseline ends <strong>six minutes
+            before</strong> the sample. A fault that ramps up would otherwise
+            contaminate its own reference window, dragging the baseline toward
+            the fault and shrinking the departure being measured.</p>
+          <p style="margin-top:12px;font-size:13px;color:var(--ink-3)">This is called
+            leakage, and it is one of the commonest ways to build a detector that
+            quietly misses the events it was written for.</p>
+        </div>
+      </div>
+    </div>
+    <div class="grid4" style="margin-top:22px">
+      <div class="panel" style="padding:14px 16px"><span class="tag" style="margin-bottom:6px">Spike / drop</span><p style="font-size:12.5px">Far from its own recent average</p></div>
+      <div class="panel" style="padding:14px 16px"><span class="tag" style="margin-bottom:6px">Rate of change</span><p style="font-size:12.5px">Faster than air can move</p></div>
+      <div class="panel" style="padding:14px 16px"><span class="tag" style="margin-bottom:6px">Frozen</span><p style="font-size:12.5px">Bit-identical — a dead channel</p></div>
+      <div class="panel" style="padding:14px 16px"><span class="tag" style="margin-bottom:6px">Noise · Drift · Range</span><p style="font-size:12.5px">Variance step, persistent offset, impossible value</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>Detection</span><span class="n">05</span></div>
+</section>
+
+<!-- 06 ────────────────────────────────────────────────────── PHYSICS -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="top">
+    <div class="kicker">05 · Stage Two</div>
+    <h2>Statistics find the unusual.<br>Physics finds the <span class="or">impossible</span>.</h2>
+  </div>
+  <div class="body">
+    <table>
+      <thead><tr><th style="width:26%">Rule</th><th style="width:40%">What it checks</th><th>Limit as configured</th></tr></thead>
+      <tbody>
+        <tr><td class="k">rate_of_change</td><td>Did it move faster than surface air can?</td><td class="mono" style="color:var(--orange)">0.8 °C / min</td></tr>
+        <tr><td class="k">range</td><td>Is it inside what the instrument can output?</td><td class="mono" style="color:var(--orange)">−48 … 56 °C</td></tr>
+        <tr><td class="k">dewpoint_consistency</td><td>Dew point must not exceed air temperature</td><td class="mono" style="color:var(--orange)">tolerance 0.6 °C</td></tr>
+        <tr><td class="k">cross_sensor</td><td>Did the other channels respond as physics requires?</td><td class="mono" style="color:var(--orange)">coherence score</td></tr>
+        <tr><td class="k">neighbour</td><td>Does the station agree with its network?</td><td class="mono" style="color:var(--orange)">3.5 σ robust</td></tr>
+        <tr><td class="k">twin</td><td>Does it agree with its modelled expectation?</td><td class="mono" style="color:var(--orange)">3.2 °C</td></tr>
+      </tbody>
+    </table>
+    <div class="grid2" style="margin-top:22px;gap:20px">
+      <div class="panel accent">
+        <span class="tag">Why the distinction has force</span>
+        <p style="font-size:14px">A 5σ departure is unusual — and unusual things happen.
+          A temperature that rose 40&nbsp;°C in one minute is not unusual; there is no
+          mechanism. <strong>Impossible is close to proof.</strong></p>
+      </div>
+      <div class="panel">
+        <span class="tag">Rules that pass are reported too</span>
+        <p style="font-size:14px">"We checked six things, two failed, here they are" is an
+          account an operator can <strong>argue with</strong>. "Anomaly detected" cannot be
+          argued with — which means it also cannot be trusted.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Physics Validation</span><span class="n">06</span></div>
+</section>
+
+<!-- 07 ───────────────────────────────────────────────── NEIGHBOURS -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="top">
+    <div class="kicker">06 · The Decisive Evidence</div>
+    <h2>Weather travels. A broken probe does not.</h2>
+  </div>
+  <div class="body">
+    <div class="grid2" style="align-items:start">
+      <div>
+        <p style="font-size:15.5px;margin-bottom:18px">A station cannot audit its own
+          thermometer — it has no second opinion. <strong>Eleven other stations do.</strong></p>
+        <div class="code" style="font-size:12px;line-height:1.7">for each relevant neighbour:
+  for lag in <b>−180min … +180min</b>:
+      did it move the <i>same direction</i>
+      by at least <i>half</i> the magnitude?
+  keep the match with smallest |lag|</div>
+        <p style="margin-top:18px;font-size:14px">Two matches at plausible lags, in
+          geographic order, is strong evidence of a real event. <strong>Zero matches —
+          nobody, anywhere, at any lag — is strong evidence of a broken probe.</strong></p>
+      </div>
+      <div class="panel">
+        <span class="tag">Proximity is a poor guide</span>
+        <p style="font-size:14.5px;margin-bottom:16px">A peak 8&nbsp;km away is a worse
+          reference than a valley town 60&nbsp;km away. Relevance blends four factors:</p>
+        <div class="evrow"><span class="lbl">Distance <span class="mono" style="color:var(--ink-3);font-size:11px">exp(−km/70)</span></span><span class="wt">33%</span></div>
+        <div class="bar f" style="width:100%;margin-bottom:12px">DISTANCE</div>
+        <div class="evrow"><span class="lbl">Elevation difference</span><span class="wt">25%</span></div>
+        <div class="bar f" style="width:76%;margin-bottom:12px">ELEVATION</div>
+        <div class="evrow"><span class="lbl">Historical correlation</span><span class="wt">24%</span></div>
+        <div class="bar f" style="width:73%;margin-bottom:12px">CORRELATION</div>
+        <div class="evrow"><span class="lbl">Terrain &amp; maritime influence</span><span class="wt">18%</span></div>
+        <div class="bar f" style="width:55%">TERRAIN</div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:20px;border-color:var(--line-2);padding:14px 20px">
+      <p style="font-size:13.5px"><strong>Before any comparison:</strong> temperature is
+        lapse-corrected (6.5&nbsp;°C / 1000&nbsp;m), pressure is carried via mean sea level,
+        and humidity is converted to <strong>dew point</strong> and back — relative humidity
+        is not comparable between sites at different temperatures.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Neighbour Intelligence</span><span class="n">07</span></div>
+</section>
+
+<!-- 08 ─────────────────────────────────────────────── CLASSIFICATION -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="top">
+    <div class="kicker">07 · The Central Judgement</div>
+    <h2>A courtroom, not a formula</h2>
+  </div>
+  <div class="body">
+    <div class="grid2" style="gap:26px">
+      <div>
+        <div class="tag" style="color:var(--orange)">Toward hardware fault</div>
+        <div class="evrow"><span class="lbl">Physically impossible rate of change</span><span class="wt">2.5</span></div>
+        <div class="bar f" style="width:81%;margin-bottom:10px"></div>
+        <div class="evrow"><span class="lbl">No neighbouring station agrees</span><span class="wt">2.4</span></div>
+        <div class="bar f" style="width:77%;margin-bottom:10px"></div>
+        <div class="evrow"><span class="lbl">Other channels did not respond</span><span class="wt">2.2</span></div>
+        <div class="bar f" style="width:71%;margin-bottom:10px"></div>
+        <div class="evrow"><span class="lbl">Dew point above air temperature</span><span class="wt">2.0</span></div>
+        <div class="bar f" style="width:65%;margin-bottom:10px"></div>
+        <div class="evrow"><span class="lbl">Measurement variance jumped</span><span class="wt">1.6</span></div>
+        <div class="bar f" style="width:52%"></div>
+      </div>
+      <div>
+        <div class="tag" style="color:var(--blue)">Toward genuine weather</div>
+        <div class="evrow"><span class="lbl">Same signature across the network</span><span class="wt">2.0–3.2</span></div>
+        <div class="bar w" style="width:100%;margin-bottom:10px"></div>
+        <div class="evrow"><span class="lbl">Every channel moved together</span><span class="wt">1.4–2.8</span></div>
+        <div class="bar w" style="width:87%;margin-bottom:10px"></div>
+        <div class="evrow"><span class="lbl">Digital twin tracks the station</span><span class="wt">1.5</span></div>
+        <div class="bar w" style="width:47%;margin-bottom:10px"></div>
+        <div class="evrow"><span class="lbl">Rate fast but achievable</span><span class="wt">1.4</span></div>
+        <div class="bar w" style="width:44%;margin-bottom:10px"></div>
+        <div class="evrow"><span class="lbl">Precipitation observed at the gauge</span><span class="wt">1.1</span></div>
+        <div class="bar w" style="width:34%"></div>
+      </div>
+    </div>
+    <div class="grid3" style="margin-top:26px">
+      <div class="panel accent" style="padding:16px 18px">
+        <div class="mono" style="font-size:12px;color:var(--ink-3);margin-bottom:8px">fault 8.4 · weather 1.2</div>
+        <div class="stat sm">88%</div>
+        <div class="statlabel">Sensor fault</div>
+      </div>
+      <div class="panel" style="padding:16px 18px;border-color:color-mix(in srgb,var(--blue) 42%,var(--line))">
+        <div class="mono" style="font-size:12px;color:var(--ink-3);margin-bottom:8px">fault 1.1 · weather 6.9</div>
+        <div class="stat sm" style="color:var(--blue)">86%</div>
+        <div class="statlabel">Weather event</div>
+      </div>
+      <div class="panel" style="padding:16px 18px">
+        <div class="mono" style="font-size:12px;color:var(--ink-3);margin-bottom:8px">fault 3.2 · weather 3.0</div>
+        <div class="stat sm" style="color:var(--ink-2)">52%</div>
+        <div class="statlabel">Indeterminate — a human should look</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Classification</span><span class="n">08</span></div>
+</section>
+
+<!-- 09 ───────────────────────────────────────────────── CONFIDENCE -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="top">
+    <div class="kicker">08 · Why It Is Trustworthy</div>
+    <h2>"94% confident" is arithmetic, not a prediction</h2>
+  </div>
+  <div class="body">
+    <div class="code" style="font-size:15px;line-height:1.9;padding:22px 26px">confidence = <b>winning weight</b> ÷ <b>total weight</b></div>
+    <p class="lede" style="margin:24px 0;font-size:17px">
+      Not a probability from a model — a division over a list the operator can read
+      line by line and disagree with. <strong>That is the difference between a system
+      people trust and one they eventually switch off.</strong>
+    </p>
+    <div class="grid3">
+      <div class="panel">
+        <span class="tag">Design decision 01</span>
+        <h3 style="margin-bottom:10px">Both sides start at 0.3</h3>
+        <p style="font-size:13.5px">A non-zero prior on the losing side mathematically
+          caps the winner below 100%. The system is <strong>structurally incapable</strong>
+          of claiming certainty about the physical world.</p>
+      </div>
+      <div class="panel">
+        <span class="tag">Design decision 02</span>
+        <h3 style="margin-bottom:10px">Below 60% → indeterminate</h3>
+        <p style="font-size:13.5px">"I don't know, a human should look" is a
+          <strong>legitimate output</strong>, and far more useful than a confident
+          coin flip that nobody can identify afterwards.</p>
+      </div>
+      <div class="panel">
+        <span class="tag">Design decision 03</span>
+        <h3 style="margin-bottom:10px">Some findings short-circuit</h3>
+        <p style="font-size:13.5px">A channel with <strong>zero variance</strong>, or a value
+          outside what the instrument can produce, is not measuring the atmosphere
+          at all. There is no weather hypothesis to weigh.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Confidence</span><span class="n">09</span></div>
+</section>
+
+<!-- 10 ───────────────────────────────────────────────── CORRECTIONS -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="top">
+    <div class="kicker">09 · Stage Three</div>
+    <h2>Five estimators — their disagreement is the error bar</h2>
+  </div>
+  <div class="body">
+    <div class="grid2" style="align-items:start;gap:26px">
+      <table>
+        <thead><tr><th style="width:44%">Source</th><th style="width:16%">Weight</th><th>Blind spot</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Physics model</td><td class="mono" style="color:var(--orange)">40%</td><td style="font-size:13px">Degrades as the fault lengthens</td></tr>
+          <tr><td class="k">ML estimate <span style="font-weight:400;color:var(--ink-3)">(OLS)</span></td><td class="mono" style="color:var(--orange)">30%</td><td style="font-size:13px">Needs quiet history to fit on</td></tr>
+          <tr><td class="k">Neighbouring stations</td><td class="mono" style="color:var(--orange)">20%</td><td style="font-size:13px">Useless if neighbours are affected too</td></tr>
+          <tr><td class="k">External weather model</td><td class="mono" style="color:var(--orange)">8%</td><td style="font-size:13px">A grid cell, not this hilltop</td></tr>
+          <tr><td class="k">Recent sensor history</td><td class="mono" style="color:var(--orange)">2%</td><td style="font-size:13px">Crude — but always available</td></tr>
+        </tbody>
+      </table>
+      <div>
+        <div class="panel accent">
+          <span class="tag">Worked example · AWS-007</span>
+          <div class="code" style="border:none;background:transparent;padding:0;font-size:12.5px;line-height:1.85">raw       <b>61.40 °C</b>   ← never modified
+physics     22.10
+ml          22.40
+neighbours  22.00
+external    21.80
+history     22.30
+─────────────────────
+<b>corrected  22.16 °C</b>
+interval   21.9 – 22.5
+confidence      <b>91%</b></div>
+        </div>
+        <p style="margin-top:16px;font-size:13.5px;color:var(--ink-3)">Weights are
+          <strong style="color:var(--ink-2)">renormalised</strong> over whichever estimators
+          returned a value, so a missing external model widens the interval honestly
+          rather than quietly biasing the answer.</p>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:20px;border-color:color-mix(in srgb,var(--orange) 42%,var(--line));padding:16px 22px">
+      <p style="font-size:16px;color:var(--ink)"><strong>The rule that matters most in the
+        entire codebase: the raw value is never overwritten.</strong>
+        <span style="color:var(--ink-2)">Overwriting destroys the only evidence the
+        instrument was failing, makes the archive unauditable, and means a better
+        model can never be applied to old data — because its input is gone.</span></p>
+    </div>
+  </div>
+  <div class="foot"><span>Corrected Values</span><span class="n">10</span></div>
+</section>
+
+<!-- 11 ────────────────────────────────────────────────── SIMULATOR -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="top">
+    <div class="kicker">10 · Building a Fake World Honestly</div>
+    <h2>Simulate the cause, not the symptom</h2>
+  </div>
+  <div class="body">
+    <div class="grid2" style="gap:22px">
+      <div class="panel">
+        <span class="tag" style="color:var(--blue)">Stage 1 — the truth</span>
+        <h3 style="margin-bottom:12px">One regional atmosphere</h3>
+        <p style="font-size:14px">A single shared field, sampled by all twelve
+          stations and adjusted per site for elevation, terrain and distance from
+          the ocean.</p>
+        <div class="hr"></div>
+        <p style="font-size:13.5px;color:var(--ink-3)">Cold fronts, heat waves and
+          rainfall are applied <strong style="color:var(--blue)">here</strong>.</p>
+      </div>
+      <div class="panel">
+        <span class="tag" style="color:var(--orange)">Stage 2 — the measurement</span>
+        <h3 style="margin-bottom:12px">Imperfect hardware</h3>
+        <p style="font-size:14px">Each station observes that truth through real
+          instruments: noise, calibration offsets, packet loss, battery decline.</p>
+        <div class="hr"></div>
+        <p style="font-size:13.5px;color:var(--ink-3)">Faults are applied
+          <strong style="color:var(--orange)">here</strong>, and nowhere else.</p>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:22px;border-color:var(--line-2)">
+      <p style="font-size:16px;color:var(--ink);margin-bottom:12px">
+        <strong>The consequence: the properties the classifier relies on are never coded — they emerge.</strong></p>
+      <p style="font-size:14.5px">A front automatically appears at every station in
+        geographic order, because they all sample the same moving field. A spike
+        automatically appears at exactly one station, because it was added after the
+        field was sampled. Neither behaviour is written down anywhere — which is the
+        only reason the detection code is genuinely <strong>under test</strong> rather than
+        being told the answer.</p>
+    </div>
+    <div class="grid3" style="margin-top:20px">
+      <div class="panel" style="padding:14px 18px"><span class="tag" style="margin-bottom:6px">Deterministic</span><p style="font-size:12.5px">Nothing calls <code style="font-size:11.5px">Math.random()</code>. Every value is a pure function of a seed and a timestamp.</p></div>
+      <div class="panel" style="padding:14px 18px"><span class="tag" style="margin-bottom:6px">Geometric fronts</span><p style="font-size:12.5px">Arrival time is a projection onto the direction of travel, at 46&nbsp;km/h.</p></div>
+      <div class="panel" style="padding:14px 18px"><span class="tag" style="margin-bottom:6px">Real transect</span><p style="font-size:12.5px">Coast → Coast Range → valley → Cascades → high desert. 8&nbsp;m to 1450&nbsp;m.</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>The Simulation</span><span class="n">11</span></div>
+</section>
+
+<!-- 12 ──────────────────────────────────────────────── ARCHITECTURE -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="top">
+    <div class="kicker">11 · Architecture</div>
+    <h2>One pure function. Fifteen screens.<br>No two of them can disagree.</h2>
+  </div>
+  <div class="body">
+    <div class="code" style="font-size:14px;line-height:1.9;padding:22px 26px">buildWorld({ <i>seed</i>, <i>events</i>, <i>clock</i> })  →  <b>World</b>  →  every page reads from it</div>
+    <div class="grid2" style="margin-top:24px;align-items:start;gap:26px">
+      <div>
+        <p style="font-size:15px;margin-bottom:16px">The usual way to build a dashboard
+          gives each page its own fetching and its own state. It works right up until
+          two pages disagree — and then the bug exists only in the gap between them.
+          <strong>SkyGuard has exactly one such gap: none.</strong></p>
+        <p style="font-size:15px">Inject a fault at AWS-007 and it appears on the
+          overview, the map, the health matrix, the alert list, the maintenance queue
+          and the audit log <strong>in the same render</strong> — because they are all
+          reading the same array.</p>
+      </div>
+      <div class="panel">
+        <span class="tag">Store inputs, never outputs</span>
+        <table style="font-size:13px">
+          <thead><tr><th style="width:50%;color:var(--teal)">In the store</th><th style="color:var(--ink-3)">Never in the store</th></tr></thead>
+          <tbody>
+            <tr><td style="padding:8px 12px 8px 0">Clock, seed, injected events</td><td style="padding:8px 0">Telemetry</td></tr>
+            <tr><td style="padding:8px 12px 8px 0">The sensitivity dial</td><td style="padding:8px 0">Anomalies, incidents, alerts</td></tr>
+            <tr><td style="padding:8px 12px 8px 0">Acknowledgements</td><td style="padding:8px 0">Health scores</td></tr>
+            <tr><td style="padding:8px 12px 8px 0">Unit preferences</td><td style="padding:8px 0">Anything derivable</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="grid3" style="margin-top:18px">
+      <div class="panel" style="padding:14px 18px">
+        <div class="stat sm">~200<span style="font-size:20px">ms</span></div>
+        <div class="statlabel">Full rebuild: 24&nbsp;h of minute-resolution telemetry for 12 stations, plus the entire detection pipeline</div>
+      </div>
+      <div class="panel" style="padding:14px 18px">
+        <div class="stat sm">17,280</div>
+        <div class="statlabel">Readings regenerated per rebuild — memoised against the exact inputs that produced them</div>
+      </div>
+      <div class="panel" style="padding:14px 18px">
+        <div class="stat sm">0</div>
+        <div class="statlabel">Lines of analysis in any page component. They are pure presentation.</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Architecture</span><span class="n">12</span></div>
+</section>
+
+<!-- 13 ────────────────────────────────────────────────── MODEL LAB -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="top">
+    <div class="kicker">12 · Evaluation</div>
+    <h2>Six methods, scored against ground truth</h2>
+  </div>
+  <div class="body">
+    <div class="grid2" style="align-items:start;gap:26px">
+      <div>
+        <p style="font-size:15px;margin-bottom:18px"><strong>"Accuracy" is a trap here.</strong>
+          Faults occupy perhaps 40 minutes of a 1440-minute day, so a detector that
+          reports "no fault, ever" scores 97% accurate and is completely useless.</p>
+        <div class="panel" style="margin-bottom:14px">
+          <div class="mono" style="font-size:11px;letter-spacing:.12em;color:var(--orange);margin-bottom:8px">PRECISION</div>
+          <p style="font-size:14px;color:var(--ink)">When I raise an alarm, how often am I right?</p>
+          <p style="font-size:12.5px;color:var(--ink-3);margin-top:6px">Low → operators stop trusting the alerts.</p>
+        </div>
+        <div class="panel">
+          <div class="mono" style="font-size:11px;letter-spacing:.12em;color:var(--orange);margin-bottom:8px">RECALL</div>
+          <p style="font-size:14px;color:var(--ink)">Of the real faults, how many did I catch?</p>
+          <p style="font-size:12.5px;color:var(--ink-3);margin-top:6px">Low → broken data reaches whoever depends on it.</p>
+        </div>
+      </div>
+      <div>
+        <table style="font-size:13.5px">
+          <thead><tr><th>Method</th><th style="width:34%">Character</th></tr></thead>
+          <tbody>
+            <tr><td class="k">Rule engine</td><td style="font-size:12.5px">Fires only on the impossible</td></tr>
+            <tr><td class="k">Statistical z-score</td><td style="font-size:12.5px">The classic first line</td></tr>
+            <tr><td class="k">Rolling deviation</td><td style="font-size:12.5px">Robust — MAD, not σ</td></tr>
+            <tr><td class="k">Isolation Forest</td><td style="font-size:12.5px">32 trees, unsupervised</td></tr>
+            <tr><td class="k">Digital-twin disagreement</td><td style="font-size:12.5px">Distance from expectation</td></tr>
+            <tr><td class="k" style="color:var(--orange)">Ensemble (production)</td><td style="font-size:12.5px">All of the above, with a neighbour veto</td></tr>
+          </tbody>
+        </table>
+        <div class="panel" style="margin-top:16px;padding:14px 18px">
+          <span class="tag" style="margin-bottom:6px">Shadow deployment</span>
+          <p style="font-size:12.5px">v1.5-beta runs on every live request; its output goes
+            nowhere near the operator. Weeks of real evidence, zero blast radius.</p>
+        </div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:20px;border-color:color-mix(in srgb,var(--orange) 42%,var(--line));padding:15px 22px">
+      <p style="font-size:14px"><strong>The honest caveat:</strong> these scores exist only
+        because a simulator knows which minutes were faults. Real hardware never comes
+        with that label — <strong>which is precisely why the production path publishes
+        evidence and rules rather than a score alone.</strong> Those can be checked by a
+        human on data that has no ground truth at all.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Model Lab</span><span class="n">13</span></div>
+</section>
+
+<!-- 14 ─────────────────────────────────────────────────── PLATFORM -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="top">
+    <div class="kicker">13 · The Platform</div>
+    <h2>Fifteen sections, built for an operator on shift</h2>
+  </div>
+  <div class="body">
+    <div class="grid4" style="gap:16px">
+      <div class="panel">
+        <span class="tag" style="color:var(--teal)">Monitor</span>
+        <ul style="font-size:13.5px">
+          <li>Network overview</li>
+          <li>Network map</li>
+          <li>Live monitoring</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <span class="tag" style="color:var(--orange)">Investigate</span>
+        <ul style="font-size:13.5px">
+          <li>Anomalies</li>
+          <li>Incidents</li>
+          <li>Weather events</li>
+          <li>Corrected values</li>
+          <li>Historical analysis</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <span class="tag" style="color:var(--amber)">Act</span>
+        <ul style="font-size:13.5px">
+          <li>Sensor health</li>
+          <li>Maintenance</li>
+          <li>Alerts</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <span class="tag" style="color:var(--blue)">System</span>
+        <ul style="font-size:13.5px">
+          <li>Model Lab</li>
+          <li>Reports</li>
+          <li>Audit log</li>
+          <li>Settings</li>
+        </ul>
+      </div>
+    </div>
+    <div class="grid3" style="margin-top:22px">
+      <div class="panel">
+        <span class="tag">Provenance on every number</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+          <span class="pill ok">LIVE</span><span class="pill fault">SIMULATED</span>
+          <span class="pill weather">EXTERNAL</span><span class="pill fault">CORRECTED</span>
+        </div>
+        <p style="font-size:13px">Hovering explains what it means and where the number
+          came from. Getting this wrong would make the whole thing dishonest.</p>
+      </div>
+      <div class="panel">
+        <span class="tag">Accessibility</span>
+        <p style="font-size:13px">Semantic landmarks, visible focus, a skip link, a
+          keyboard-operable command palette, ARIA on every meter — and
+          <strong>no state signalled by colour alone</strong>. Reduced motion honoured
+          from the OS.</p>
+      </div>
+      <div class="panel">
+        <span class="tag">Degrading honestly</span>
+        <p style="font-size:13px">When the providers are down the dashboard does not
+          blank and does not invent numbers. It says so, and carries on — detection
+          needs no network at all.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>The Platform</span><span class="n">14</span></div>
+</section>
+
+<!-- 15 ──────────────────────────────────────────────────────── TECH -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="top">
+    <div class="kicker">14 · Engineering</div>
+    <h2>Built as production code, not a coursework demo</h2>
+  </div>
+  <div class="body">
+    <div class="grid2" style="align-items:start;gap:26px">
+      <div>
+        <span class="tag">Stack</span>
+        <table style="font-size:13.5px;margin-bottom:20px">
+          <tbody>
+            <tr><td class="k" style="width:38%">Framework</td><td>Next.js 16 · App Router</td></tr>
+            <tr><td class="k">Language</td><td>TypeScript, strict</td></tr>
+            <tr><td class="k">UI</td><td>React 19 · Tailwind CSS v4</td></tr>
+            <tr><td class="k">Charts &amp; maps</td><td>Recharts · Leaflet</td></tr>
+            <tr><td class="k">State</td><td>Zustand · Zod</td></tr>
+            <tr><td class="k">Live data</td><td>Open-Meteo · RainViewer <span style="color:var(--ink-3)">(keyless)</span></td></tr>
+          </tbody>
+        </table>
+        <span class="tag">Quality gates</span>
+        <div class="code" style="font-size:12.5px;line-height:1.8">npm run lint    <i># ESLint + React Compiler</i>
+npm run build   <i># production build</i>
+npm run smoke   <i># headless pass over every route,</i>
+                <i># failing on any console error</i></div>
+      </div>
+      <div>
+        <span class="tag">Performance work worth naming</span>
+        <div class="panel" style="margin-bottom:14px">
+          <h3 style="margin-bottom:8px;font-size:15px">Prefix-sum rolling statistics</h3>
+          <p style="font-size:13px">Rolling mean and σ over every 90-minute window in
+            <strong>O(n)</strong> instead of O(n × window) — three subtractions per query,
+            regardless of window size.</p>
+        </div>
+        <div class="panel" style="margin-bottom:14px">
+          <h3 style="margin-bottom:8px;font-size:15px">Two-layer memoisation</h3>
+          <p style="font-size:13px">React's <code style="font-size:12px">useMemo</code> plus a
+            module-level LRU keyed on the exact inputs — correct <em>only</em> because
+            <code style="font-size:12px">buildWorld</code> is a pure function.</p>
+        </div>
+        <div class="panel">
+          <h3 style="margin-bottom:8px;font-size:15px">Exact run-length flatness</h3>
+          <p style="font-size:13px">Frozen channels are found by exact run length, not a
+            variance threshold — prefix-sum variance of a constant series loses its
+            significant digits to cancellation.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Engineering</span><span class="n">15</span></div>
+</section>
+
+<!-- 16 ────────────────────────────────────────────────── PRINCIPLES -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="top">
+    <div class="kicker">15 · What Transfers</div>
+    <h2>Eight ideas worth taking to any project</h2>
+  </div>
+  <div class="body">
+    <div class="grid2" style="gap:20px 32px">
+      <div>
+        <ul style="font-size:14.5px">
+          <li><strong>Show your working.</strong> Every verdict carries the evidence that produced it.</li>
+          <li><strong>Never destroy the original.</strong> Corrections sit beside raw data, not on top of it.</li>
+          <li><strong>Refuse to be certain.</strong> No confidence reaches 100%; "indeterminate" is a valid answer.</li>
+          <li><strong>One source of truth.</strong> Screens reading the same object cannot disagree.</li>
+        </ul>
+      </div>
+      <div>
+        <ul style="font-size:14.5px">
+          <li><strong>Determinism by default.</strong> A bug you can reproduce is a bug you can fix.</li>
+          <li><strong>Label everything.</strong> Live or simulated, on every number, always.</li>
+          <li><strong>Explain the threshold, not just the result.</strong> "4.2&nbsp;°C above the 90-minute baseline (7.1σ)" beats "anomaly detected".</li>
+          <li><strong>Simulate the cause, not the symptom.</strong> Then your detector is genuinely under test.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:26px;border-color:var(--line-2)">
+      <span class="tag">Stated plainly, because the questions will come</span>
+      <p style="font-size:14px">The station network is <strong>fictional</strong> — nothing connects to real
+        hardware. Model Lab scores exist only because a simulator knows the ground truth.
+        Failure risk is a deterministic score, not a trained model. The operator assistant
+        is <strong>deliberately not a language model</strong>: every answer is assembled from
+        the same objects the screens render, so it cannot invent a number.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Principles</span><span class="n">16</span></div>
+</section>
+
+<!-- 17 ───────────────────────────────────────────────────── CLOSING -->
+<section class="slide">
+  <div class="rail"></div>
+  <div class="body">
+    <div class="kicker">Thank you</div>
+    <h1 style="margin-top:20px;font-size:62px">Sky<span class="or">Guard</span></h1>
+    <p class="lede" style="margin-top:22px;font-size:19px;max-width:62ch">
+      Detect the unusual. Explain it in evidence a human can argue with. Correct it
+      without destroying it. Then turn it into work someone can actually do.
+    </p>
+    <div class="hr" style="max-width:560px;margin:30px 0 26px"></div>
+    <div class="grid3" style="gap:18px">
+      <div class="panel">
+        <span class="tag">Live demo</span>
+        <p class="mono" style="font-size:12.5px;color:var(--orange);word-break:break-all">skyguard-zorikos-projects.vercel.app</p>
+      </div>
+      <div class="panel">
+        <span class="tag">Source</span>
+        <p class="mono" style="font-size:12.5px;color:var(--orange);word-break:break-all">github.com/Zorik0/skyguard</p>
+      </div>
+      <div class="panel">
+        <span class="tag">Portfolio</span>
+        <p class="mono" style="font-size:12.5px;color:var(--orange)">zoriko.space</p>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:20px;border-color:var(--line-2);padding:15px 22px">
+      <p style="font-size:13.5px"><strong>Reading the code:</strong>
+        <code style="font-size:12.5px;color:var(--orange)">LEARNING_GUIDE.md</code> is a guided tour
+        for someone handed this repository — a reading order through nine files, every
+        concept defined once, one number traced from creation to display, and exercises.
+        Every file in <code style="font-size:12.5px">src/lib</code> opens by explaining itself.</p>
+    </div>
+  </div>
+  <div class="foot"><span>SkyGuard · MIT Licence</span><span class="n">17</span></div>
+</section>
+
+</body>
+</html>
